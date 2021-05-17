@@ -1,8 +1,12 @@
-# Strongly Typed Router.
+# TS Lambda Router.
 
-Bad name. Sick router.
+Router for AWS Lambdas/API Gateway proxy integration
 
-## Uses Typescript template types to provider strongly typed goodness for your API Handlers
+Uses Typescript template types to provider strongly typed goodness for your API Handlers
+
+### Demo
+
+![Demo](./router_demo.gif)
 
 ### Usage:
 
@@ -40,3 +44,5 @@ export const handler: APIGatewayProxyHandler =
         )
 
 ```
+
+See full example at [./example](./example)

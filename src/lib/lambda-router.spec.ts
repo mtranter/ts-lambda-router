@@ -1,10 +1,11 @@
+
 import { Type } from "@sinclair/typebox";
 import {
   APIGatewayProxyEvent,
   APIGatewayProxyHandler,
   APIGatewayProxyResult,
 } from "aws-lambda";
-import { ApiBuilder } from "./api-builder";
+import { LambdaRouter } from './lambda-router';
 
 describe("ApiHandler", () => {
   const testHandler =
@@ -13,7 +14,7 @@ describe("ApiHandler", () => {
       h(event as any as APIGatewayProxyEvent, null as any, null as any) as any;
 
   it("should handle the root route", async () => {
-    const handler = ApiBuilder.build((r) =>
+    const handler = LambdaRouter.build((r) =>
       r.get("/")((r, o) => Promise.resolve({ statusCode: 200, body: "OK" }))
     );
     const result = await testHandler(handler)({
@@ -26,7 +27,7 @@ describe("ApiHandler", () => {
   });
 
   it("should return 404 for unknown route", async () => {
-    const handler = ApiBuilder.build((r) =>
+    const handler = LambdaRouter.build((r) =>
       r.get("/")((r, o) => Promise.resolve({ statusCode: 200, body: "OK" }))
     );
     const result = await testHandler(handler)({
@@ -38,7 +39,7 @@ describe("ApiHandler", () => {
   });
 
   it("should correct params for parameterised route", async () => {
-    const handler = ApiBuilder.build((r) =>
+    const handler = LambdaRouter.build((r) =>
       r.get("/name/{name}/age/{age:int}")((r, o) =>
         Promise.resolve({ statusCode: 200, body: JSON.stringify(r.pathParams) })
       )
@@ -54,7 +55,7 @@ describe("ApiHandler", () => {
   });
 
   it("should correct params for float parameterised route", async () => {
-    const handler = ApiBuilder.build((r) =>
+    const handler = LambdaRouter.build((r) =>
       r.get("/name/{name}/age/{age:float}")((r, o) =>
         Promise.resolve({ statusCode: 200, body: JSON.stringify(r.pathParams) })
       )
@@ -69,7 +70,7 @@ describe("ApiHandler", () => {
     expect(JSON.parse(result.body)).toEqual({ name: "john", age: 30 });
   });
   it("should correct params for parameterised post route", async () => {
-    const handler = ApiBuilder.build((r) =>
+    const handler = LambdaRouter.build((r) =>
       r
         .get("/name/{name}/age/{age:int}")((r, o) =>
           Promise.resolve({
@@ -103,7 +104,7 @@ describe("ApiHandler", () => {
     });
   });
   it("should correct 400 for parameterised post route with invalid body", async () => {
-    const handler = ApiBuilder.build((r) =>
+    const handler = LambdaRouter.build((r) =>
       r
         .get("/name/{name}/age/{age:int}")((r, o) =>
           Promise.resolve({
@@ -131,7 +132,7 @@ describe("ApiHandler", () => {
     expect(result.statusCode).toEqual(400);
   });
   it("should return 400 for poorly formatted url", async () => {
-    const handler = ApiBuilder.build((r) =>
+    const handler = LambdaRouter.build((r) =>
       r.get("/name/{name}/age/{age:int}")((r, o) =>
         Promise.resolve({ statusCode: 200, body: JSON.stringify(r.pathParams) })
       )
@@ -144,7 +145,7 @@ describe("ApiHandler", () => {
     expect(result.statusCode).toEqual(400);
   });
   it("should correct params for parameterised route with query strings", async () => {
-    const handler = ApiBuilder.build((r) =>
+    const handler = LambdaRouter.build((r) =>
       r.get("/name/{name}/age/{age:int}?{gender}")((r, o) =>
         Promise.resolve({
           statusCode: 200,

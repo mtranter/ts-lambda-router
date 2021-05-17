@@ -1,5 +1,5 @@
 {
-  "name": "@mtranter/aws-la",
+  "name": "@mtranter/ts-lambda-router",
   "version": "0.1.0",
   "license": "MIT",
   "publishConfig": {

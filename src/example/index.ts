@@ -1,9 +1,9 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { ApiBuilder } from "../lib/api-builder";
+import { LambdaRouter } from "../lib/lambda-router";
 import * as Domain from "./domain";
 import { Account } from "./models";
 
-export const handler2: APIGatewayProxyHandler = ApiBuilder.build((routes) =>
+export const handler2: APIGatewayProxyHandler = LambdaRouter.build((routes) =>
   routes
     .head("/accounts/${username}")(async (r) => {
       const accountExists = await Domain.accountExists(r.pathParams.username);
@@ -28,9 +28,3 @@ export const handler2: APIGatewayProxyHandler = ApiBuilder.build((routes) =>
     }))
   )
 );
-
-
-
-const handler = ApiBuilder.build(routes => 
-
-)
