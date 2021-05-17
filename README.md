@@ -45,4 +45,4 @@ export const handler: APIGatewayProxyHandler =
 
 ```
 
-See full example at [./example](./example)
+See full example at [./src/example](./example)
