@@ -1,0 +1,33 @@
+{
+  "name": "@mtranter/aws-la",
+  "version": "0.1.0",
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/",
+    "access": "restricted"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**"
+  ],
+  "scripts": {
+    "build": "rm -rf ./dist && tsc",
+    "test": "jest --collect-coverage"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.70",
+    "@types/jest": "^26.0.23",
+    "@types/string.prototype.matchall": "^4.0.0",
+    "aws-sdk": "^2.907.0",
+    "jest": "^26.6.3",
+    "ts-jest": "^26.5.6",
+    "typescript": "^4.2.4"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.12.8",
+    "ajv": "^7.1.1",
+    "fp-ts": "^2.10.5",
+    "string.prototype.matchall": "^4.0.4"
+  }
+}
