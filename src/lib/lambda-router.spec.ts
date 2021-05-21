@@ -72,12 +72,6 @@ describe("ApiHandler", () => {
   it("should correct params for parameterised post route", async () => {
     const handler = LambdaRouter.build((r) =>
       r
-        .get("/name/{name}/age/{age:int}")((r, o) =>
-          Promise.resolve({
-            statusCode: 200,
-            body: JSON.stringify(r.pathParams),
-          })
-        )
         .post(
           "/name/{name}/age/{age:int}",
           Type.Object({
