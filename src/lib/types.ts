@@ -2,6 +2,10 @@
 
 import { PathParamParser, PathParamParsers } from './path-param-parser';
 
+export type Logger = {
+  info: (msg: string, metadata?: object) => void
+}
+
 /* eslint-disable @typescript-eslint/no-unused-vars */
 type _<T> = T;
 export type Merge<T> = _<{ [k in keyof T]: T[k] }>;

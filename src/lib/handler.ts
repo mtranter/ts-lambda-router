@@ -1,3 +1,4 @@
+import { Logger } from "./types";
 import Ajv from "ajv";
 import { APIGatewayProxyHandler } from "aws-lambda";
 import {
@@ -10,9 +11,10 @@ import * as FP from "fp-ts";
 
 const ajv = new Ajv({ strict: false });
 export const APIEventHandler: (
-  routes: RouteHandlers
+  routes: RouteHandlers,
+  logger?: Logger
 ) => APIGatewayProxyHandler =
-  ({ handlers }) =>
+  ({ handlers }, logger) =>
   (event, ctx) => {
     const route = handlers
       .filter((h) => event.httpMethod.toLowerCase() === h.method.toLowerCase())
@@ -58,18 +60,39 @@ export const APIEventHandler: (
             }
           );
         } else {
+          logger &&
+            logger.info(`Unresolvable route`, {
+              body: event.body,
+              path: event.path,
+              query: event.queryStringParameters,
+              headers: event.headers
+            });
           return Promise.resolve({
-            statusCode: 400,
+            statusCode: 404,
             body: "Bad Request",
           });
         }
       } else {
+        logger &&
+          logger.info(`Request body does not much expected schema`, {
+            body: event.body,
+            path: event.path,
+            query: event.queryStringParameters,
+            headers: event.headers
+          });
         return Promise.resolve({
           statusCode: 400,
           body: "Bad Request",
         });
       }
     } else {
+      logger &&
+        logger.info(`Unresolvable route`, {
+          body: event.body,
+          path: event.path,
+          query: event.queryStringParameters,
+          headers: event.headers
+        });
       return Promise.resolve({
         statusCode: 404,
         body: "Not Found",
