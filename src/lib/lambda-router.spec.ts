@@ -1,11 +1,10 @@
-
 import { Type } from "@sinclair/typebox";
 import {
   APIGatewayProxyEvent,
   APIGatewayProxyHandler,
   APIGatewayProxyResult,
 } from "aws-lambda";
-import { LambdaRouter } from './lambda-router';
+import { LambdaRouter } from "./lambda-router";
 
 describe("ApiHandler", () => {
   const testHandler =
@@ -71,13 +70,12 @@ describe("ApiHandler", () => {
   });
   it("should correct params for parameterised post route", async () => {
     const handler = LambdaRouter.build((r) =>
-      r
-        .post(
-          "/name/{name}/age/{age:int}",
-          Type.Object({
-            creditCardNumber: Type.String(),
-          })
-        )((r, o) =>
+      r.post(
+        "/name/{name}/age/{age:int}",
+        Type.Object({
+          creditCardNumber: Type.String(),
+        })
+      )((r, o) =>
         Promise.resolve({
           statusCode: 200,
           body: JSON.stringify({ ...r.pathParams, ...r.body }),
@@ -136,7 +134,7 @@ describe("ApiHandler", () => {
       httpMethod: "get",
       body: "",
     });
-    expect(result.statusCode).toEqual(400);
+    expect(result.statusCode).toEqual(404);
   });
   it("should correct params for parameterised route with query strings", async () => {
     const handler = LambdaRouter.build((r) =>
@@ -161,6 +159,59 @@ describe("ApiHandler", () => {
       name: "john",
       age: 30,
       gender: "male",
+    });
+  });
+
+  describe("CORS Headers", () => {
+    it("should add permissive cors headers when passed 'true' for cors config", async () => {
+      const handler = LambdaRouter.build(
+        (r) =>
+          r.get("/")((r, o) =>
+            Promise.resolve({ statusCode: 200, body: "OK" })
+          ),
+        { corsConfig: true }
+      );
+      const result = await testHandler(handler)({
+        path: "/",
+        httpMethod: "get",
+        body: "",
+      });
+      expect(result.headers).toEqual({
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "*",
+        "Access-Control-Allow-Origin": "*",
+      });
+    });
+    it("should add configured cors headers", async () => {
+      const handler = LambdaRouter.build(
+        (r) =>
+          r.get("/")((r, o) =>
+            Promise.resolve({ statusCode: 200, body: "OK" })
+          ),
+        {
+          corsConfig: {
+            allowCredentials: false,
+            allowHeaders: ["content-type", "user-agent"],
+            allowOrigin: ['http://localhost:8080'],
+            allowMethods: ["PUT", "POST", "GET"],
+          },
+        }
+      );
+      const result = await testHandler(handler)({
+        path: "/",
+        httpMethod: "get",
+        body: "",
+        headers: {
+          origin: 'http://localhost:8080'
+        }
+      });
+      expect(result.headers).toEqual({
+        "Access-Control-Allow-Credentials": "false",
+        "Access-Control-Allow-Headers": "content-type, user-agent",
+        "Access-Control-Allow-Methods": "PUT, POST, GET",
+        "Access-Control-Allow-Origin": "http://localhost:8080",
+      });
     });
   });
 });
