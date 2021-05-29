@@ -21,9 +21,9 @@ const buildCorsHeaders = (
   "Access-Control-Allow-Headers":
     cfg.allowHeaders === "*" ? "*" : cfg.allowHeaders.join(", "),
   "Access-Control-Allow-Origin": Array.isArray(cfg.allowOrigin)
-    ? cfg.allowOrigin.indexOf(req["origin"]!) > -1
+    ? cfg.allowOrigin.indexOf(req && req["origin"]!) > -1
       ? req["origin"]
-      : ""
+      : "null"
     : cfg.allowOrigin,
   "Access-Control-Allow-Methods":
     cfg.allowMethods === "*" ? "*" : cfg.allowMethods.join(", "),
