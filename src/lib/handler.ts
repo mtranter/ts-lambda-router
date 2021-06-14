@@ -64,7 +64,7 @@ export const APIEventHandler: (
     if (route) {
       const path = route.url.split("?")[0];
       const query = route.url.split("?")[1];
-      const pathParams = parsePathParams(event.path, path);
+      const pathParams = parsePathParams(decodeURIComponent(event.path), path);
       const queryParams = event.queryStringParameters
         ? parseQueryParams(event.queryStringParameters, query)
         : FP.either.right({});

@@ -25,6 +25,19 @@ describe("ApiHandler", () => {
     expect(result.statusCode).toEqual(200);
   });
 
+  it("should handle a root route with escaped characters", async () => {
+    const handler = LambdaRouter.build((r) =>
+      r.get("/{userId}")((r, o) => Promise.resolve({ statusCode: 200, body: r.pathParams.userId }))
+    );
+    const result = await testHandler(handler)({
+      path: "/github%7C3257273",
+      httpMethod: "get",
+      body: "",
+    });
+    expect(result.body).toEqual("github|3257273");
+    expect(result.statusCode).toEqual(200);
+  });
+
   it("should return 404 for unknown route", async () => {
     const handler = LambdaRouter.build((r) =>
       r.get("/")((r, o) => Promise.resolve({ statusCode: 200, body: "OK" }))
