@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
+import { Static } from "@sinclair/typebox";
 import { PathParamParser, PathParamParsers } from "./path-param-parser";
+import { Responses, Response } from "./router";
 
 export type Logger = {
   info: (msg: string, metadata?: object) => void;
@@ -15,6 +17,7 @@ export type CorsConfig = {
 
 export type RouterConfig = {
   logger?: Logger;
+  defaultHeaders?: Record<string, string>
   corsConfig?: true | CorsConfig;
 };
 
@@ -61,10 +64,11 @@ type QueryParams<A extends string, Seed = {}> =
     ? Merge<Seed & UrlParam<AA> & QueryParams<Tail>>
     : Seed;
 
-export type Request<Url extends string, Body = unknown> = {
+export type Request<Url extends string, Body, R extends Responses> = {
   pathParams: Url extends `${infer P}?${infer _}`
     ? PathParams<P>
     : PathParams<Url>;
   queryParams: Url extends `${infer _}?${infer Q}` ? QueryParams<Q> : never;
   body: Body;
+  response: <S extends keyof R & number>(s: S, body: Static<R[S]>, headers?: Record<string, string>) => Promise<Response<R, S>>
 };

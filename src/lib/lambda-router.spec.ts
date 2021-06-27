@@ -14,33 +14,34 @@ describe("ApiHandler", () => {
 
   it("should handle the root route", async () => {
     const handler = LambdaRouter.build((r) =>
-      r.get("/")((r, o) => Promise.resolve({ statusCode: 200, body: "OK" }))
+      r.get("/")((r, o) => r.response(200, "OK"))
     );
     const result = await testHandler(handler)({
       path: "/",
       httpMethod: "get",
       body: "",
     });
-    expect(result.body).toEqual("OK");
+
+    expect(JSON.parse(result.body)).toEqual("OK");
     expect(result.statusCode).toEqual(200);
   });
 
   it("should handle a root route with escaped characters", async () => {
     const handler = LambdaRouter.build((r) =>
-      r.get("/{userId}")((r, o) => Promise.resolve({ statusCode: 200, body: r.pathParams.userId }))
+      r.get("/{userId}")((r, o) => r.response(200, r.pathParams.userId))
     );
     const result = await testHandler(handler)({
       path: "/github%7C3257273",
       httpMethod: "get",
       body: "",
     });
-    expect(result.body).toEqual("github|3257273");
+    expect(JSON.parse(result.body)).toEqual("github|3257273");
     expect(result.statusCode).toEqual(200);
   });
 
   it("should return 404 for unknown route", async () => {
     const handler = LambdaRouter.build((r) =>
-      r.get("/")((r, o) => Promise.resolve({ statusCode: 200, body: "OK" }))
+      r.get("/", { 200: Type.String() })((r, o) => r.response(200, "OK"))
     );
     const result = await testHandler(handler)({
       path: "/hello",
@@ -53,7 +54,7 @@ describe("ApiHandler", () => {
   it("should correct params for parameterised route", async () => {
     const handler = LambdaRouter.build((r) =>
       r.get("/name/{name}/age/{age:int}")((r, o) =>
-        Promise.resolve({ statusCode: 200, body: JSON.stringify(r.pathParams) })
+        r.response(200, r.pathParams)
       )
     );
     const result = await testHandler(handler)({
@@ -69,7 +70,7 @@ describe("ApiHandler", () => {
   it("should correct params for float parameterised route", async () => {
     const handler = LambdaRouter.build((r) =>
       r.get("/name/{name}/age/{age:float}")((r, o) =>
-        Promise.resolve({ statusCode: 200, body: JSON.stringify(r.pathParams) })
+        r.response(200, r.pathParams)
       )
     );
     const result = await testHandler(handler)({
@@ -88,12 +89,7 @@ describe("ApiHandler", () => {
         Type.Object({
           creditCardNumber: Type.String(),
         })
-      )((r, o) =>
-        Promise.resolve({
-          statusCode: 200,
-          body: JSON.stringify({ ...r.pathParams, ...r.body }),
-        })
-      )
+      )((r, o) => r.response(200, { ...r.pathParams, ...r.body }))
     );
     const result = await testHandler(handler)({
       path: "/name/john/age/30",
@@ -112,22 +108,14 @@ describe("ApiHandler", () => {
     const handler = LambdaRouter.build((r) =>
       r
         .get("/name/{name}/age/{age:int}")((r, o) =>
-          Promise.resolve({
-            statusCode: 200,
-            body: JSON.stringify(r.pathParams),
-          })
+          r.response(200, r.pathParams)
         )
         .post(
           "/name/{name}/age/{age:int}",
           Type.Object({
             creditCardNumber: Type.String(),
           })
-        )((r, o) =>
-        Promise.resolve({
-          statusCode: 200,
-          body: JSON.stringify({ ...r.pathParams, ...r.body }),
-        })
-      )
+        )((r, o) => r.response(200, { ...r.pathParams, ...r.body }))
     );
     const result = await testHandler(handler)({
       path: "/name/john/age/30",
@@ -135,11 +123,102 @@ describe("ApiHandler", () => {
       body: '{"creditCard": "1234 5678 8765 4321"}',
     });
     expect(result.statusCode).toEqual(400);
+    const yml = handler.toOpenApiPart();
+    expect(yml).toEqual(`/name/{name}/age/{age}:
+  post:
+    parameters:
+      - in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: age
+        required: true
+        schema:
+          type: integer
+    responses:
+      - '200':
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+      - '201':
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+      - '400':
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+      - '404':
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+      - '500':
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            properties:
+              creditCardNumber:
+                type: string
+            required:
+              - creditCardNumber
+  get:
+    parameters:
+      - in: path
+        name: name
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: age
+        required: true
+        schema:
+          type: integer
+    responses:
+      - '200':
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+      - '201':
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+      - '400':
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+      - '404':
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+      - '500':
+          anyOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+`);
   });
   it("should return 400 for poorly formatted url", async () => {
     const handler = LambdaRouter.build((r) =>
       r.get("/name/{name}/age/{age:int}")((r, o) =>
-        Promise.resolve({ statusCode: 200, body: JSON.stringify(r.pathParams) })
+        r.response(200, r.pathParams)
       )
     );
     const result = await testHandler(handler)({
@@ -150,12 +229,9 @@ describe("ApiHandler", () => {
     expect(result.statusCode).toEqual(404);
   });
   it("should correct params for parameterised route with query strings", async () => {
-    const handler = LambdaRouter.build((r) =>
-      r.get("/name/{name}/age/{age:int}?{gender}")((r, o) =>
-        Promise.resolve({
-          statusCode: 200,
-          body: JSON.stringify({ ...r.pathParams, ...r.queryParams }),
-        })
+    const handler = LambdaRouter.build((routes) =>
+      routes.get("/name/{name}/age/{age:int}?{gender}")((r, o) =>
+        r.response(200, { ...r.pathParams, ...r.queryParams })
       )
     );
     const result = await testHandler(handler)({
@@ -178,9 +254,9 @@ describe("ApiHandler", () => {
   describe("CORS Headers", () => {
     it("should add permissive cors headers when passed 'true' for cors config", async () => {
       const handler = LambdaRouter.build(
-        (r) =>
-          r.get("/")((r, o) =>
-            Promise.resolve({ statusCode: 200, body: "OK" })
+        (routes) =>
+          routes.get("/")((r, o) =>
+            r.response(200, "OK")
           ),
         { corsConfig: true }
       );
@@ -198,15 +274,15 @@ describe("ApiHandler", () => {
     });
     it("should add configured cors headers", async () => {
       const handler = LambdaRouter.build(
-        (r) =>
-          r.get("/")((r, o) =>
-            Promise.resolve({ statusCode: 200, body: "OK" })
+        (routes) =>
+          routes.get("/")((r, o) =>
+            r.response(200, "OK")
           ),
         {
           corsConfig: {
             allowCredentials: false,
             allowHeaders: ["content-type", "user-agent"],
-            allowOrigin: ['http://localhost:8080'],
+            allowOrigin: ["http://localhost:8080"],
             allowMethods: ["PUT", "POST", "GET"],
           },
         }
@@ -216,8 +292,8 @@ describe("ApiHandler", () => {
         httpMethod: "get",
         body: "",
         headers: {
-          origin: 'http://localhost:8080'
-        }
+          origin: "http://localhost:8080",
+        },
       });
       expect(result.headers).toEqual({
         "Access-Control-Allow-Credentials": "false",

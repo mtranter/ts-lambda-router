@@ -4,6 +4,12 @@ Router for AWS Lambdas/API Gateway proxy integration
 
 Uses Typescript template types to provider strongly typed goodness for your API Handlers
 
+### Installation
+```
+yarn add ts-lambda-router
+```
+
+
 ### Demo
 
 ![Demo](./router_demo.gif)
@@ -22,7 +28,7 @@ export const Account = Type.Object({
 });
 
 export const handler: APIGatewayProxyHandler =
-    ApiBuilder.build((routes) =>
+    LambdaRouter.build((routes) =>
         routes
           .get("/accounts/${username}")((r) =>
             Domain

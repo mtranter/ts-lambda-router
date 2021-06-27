@@ -1,30 +1,35 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
 import { LambdaRouter } from "../lib/lambda-router";
 import * as Domain from "./domain";
-import { Account } from "./models";
+import { Account, AccountCreateResponses } from "./models";
 
-export const handler2: APIGatewayProxyHandler = LambdaRouter.build((routes) =>
+export const handler: APIGatewayProxyHandler = LambdaRouter.build((routes) =>
   routes
     .head("/accounts/${username}")(async (r) => {
       const accountExists = await Domain.accountExists(r.pathParams.username);
-      return {
-        statusCode: accountExists ? 200 : 404,
-        body: "",
-      };
+      return r.response(accountExists ? 200 : 404, "");
     })
     .get("/accounts/${username}")((r) =>
-      Domain.getAccount(r.pathParams.username).then((a) => ({
-        statusCode: a ? 200 : 404,
-        body: JSON.stringify(a),
-      }))
+      Domain.getAccount(r.pathParams.username).then((a) =>
+        r.response(a ? 200 : 404, a)
+      )
     )
     .post(
       "/accounts",
-      Account
+      Account,
+      AccountCreateResponses
     )((r) =>
-    Domain.saveAccount(r.body).then(() => ({
-      statusCode: 201,
-      body: "",
-    }))
+    Domain.saveAccount(r.body)
+      .then((id) =>
+        r.response(201, {
+          accountId: id,
+        })
+      )
+      .catch((e) => {
+        console.log("Error saving account", e);
+        return r.response(400, {
+          message: "Error",
+        });
+      })
   )
 );

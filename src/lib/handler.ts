@@ -11,6 +11,7 @@ import {
 } from "./path-param-parser";
 import { RouteHandlers } from "./router";
 import * as FP from "fp-ts";
+import { toOpenApiPart } from "./open-api";
 
 const ajv = new Ajv({ strict: false });
 
@@ -30,12 +31,15 @@ const buildCorsHeaders = (
   "Access-Control-Allow-Credentials": cfg.allowCredentials.toString(),
 });
 
+export type ApiGatewayHandlerWithOpenApi = APIGatewayProxyHandler & {
+  toOpenApiPart: () => object;
+};
+
 export const APIEventHandler: (
   routes: RouteHandlers,
   config?: RouterConfig
-) => APIGatewayProxyHandler =
-  ({ handlers }, cfg) =>
-  (event, ctx) => {
+) => ApiGatewayHandlerWithOpenApi = ({ handlers }, cfg) => {
+  const handler: ApiGatewayHandlerWithOpenApi = (event, ctx) => {
     const { logger, corsConfig } = cfg || {};
     const thisCorsConfig: CorsConfig | undefined =
       corsConfig === true
@@ -87,13 +91,28 @@ export const APIEventHandler: (
                 pathParams: tupled.right[0],
                 queryParams: tupled.right[1],
                 body: bodyObj,
+                response: (sc, bod, h) =>
+                  Promise.resolve({
+                    statusCode: sc,
+                    body: bod,
+                    headers: h,
+                  }),
               },
               {
                 originalEvent: event,
                 context: ctx,
               }
             )
-            .then((r) => ({ ...r, headers: { ...corsHeaders, ...r.headers } }));
+            .then((r) => ({
+              statusCode: r.statusCode,
+              body: r.body ? JSON.stringify(r.body) : "",
+              headers: {
+                ...corsHeaders,
+                ...{ "content-type": "application/json" },
+                ...cfg?.defaultHeaders,
+                ...r.headers,
+              },
+            }));
         } else {
           logger &&
             logger.info(`Unresolvable route`, {
@@ -104,7 +123,7 @@ export const APIEventHandler: (
             });
           return Promise.resolve({
             statusCode: 404,
-            body: "Bad Request",
+            body: JSON.stringify({ message: "Not Found" }),
             headers: corsHeaders,
           });
         }
@@ -118,7 +137,7 @@ export const APIEventHandler: (
           });
         return Promise.resolve({
           statusCode: 400,
-          body: "Bad Request",
+          body: JSON.stringify({ message: "Bad request" }),
           headers: corsHeaders,
         });
       }
@@ -132,8 +151,13 @@ export const APIEventHandler: (
         });
       return Promise.resolve({
         statusCode: 404,
-        body: "Not Found",
+        body: JSON.stringify({ message: "Not found" }),
         headers: corsHeaders,
       });
     }
   };
+
+  handler.toOpenApiPart = () => toOpenApiPart(handlers);
+
+  return handler;
+};
