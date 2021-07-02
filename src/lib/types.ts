@@ -9,15 +9,23 @@ export type Logger = {
 };
 
 export type CorsConfig = {
-      allowHeaders: "*" | string[];
-      allowOrigin: string | string[];
-      allowMethods: "*" | string[];
-      allowCredentials: boolean;
-    };
+  allowHeaders: "*" | string[];
+  allowOrigin: string | string[];
+  allowMethods: "*" | string[];
+  allowCredentials: boolean;
+};
 
 export type RouterConfig = {
   logger?: Logger;
-  defaultHeaders?: Record<string, string>
+  logConfig?: {
+    logger?: Logger;
+    logRequests?: boolean;
+    logResponses?: boolean;
+    logRequestBody?: boolean;
+    logResponseBody?: boolean;
+    ignoredHeaders?: string[];
+  };
+  defaultHeaders?: Record<string, string>;
   corsConfig?: true | CorsConfig;
 };
 
@@ -39,30 +47,36 @@ type PathParam<S extends string> = S extends `${infer Var}:${infer VarType}`
   ? { readonly [key in Var]: string }
   : never;
 
-type PathParams<A extends string, Seed = {}> =
-  A extends `{${infer AA}}${infer Tail}`
-    ? Merge<Seed & PathParam<AA> & PathParams<Tail>>
-    : A extends `${infer _}{${infer AA}}${infer Tail}`
-    ? Merge<Seed & PathParam<AA> & PathParams<Tail>>
-    : A extends `${infer _}{${infer AA}}`
-    ? Merge<Seed & PathParam<AA>>
-    : Seed;
+type PathParams<
+  A extends string,
+  Seed = {}
+> = A extends `{${infer AA}}${infer Tail}`
+  ? Merge<Seed & PathParam<AA> & PathParams<Tail>>
+  : A extends `${infer _}{${infer AA}}${infer Tail}`
+  ? Merge<Seed & PathParam<AA> & PathParams<Tail>>
+  : A extends `${infer _}{${infer AA}}`
+  ? Merge<Seed & PathParam<AA>>
+  : Seed;
 
-type UrlParam<S extends string, P = string> =
-  S extends `${infer Var}:${infer VarType}`
-    ? VarType extends keyof PathParamParsers
-      ? UrlParam<Var, ParserType<VarType>>
-      : never
-    : S extends `${infer Var}?`
-    ? { readonly [key in Var]?: P }
-    : S extends `${infer Var}`
-    ? { readonly [key in Var]: P }
-    : never;
+type UrlParam<
+  S extends string,
+  P = string
+> = S extends `${infer Var}:${infer VarType}`
+  ? VarType extends keyof PathParamParsers
+    ? UrlParam<Var, ParserType<VarType>>
+    : never
+  : S extends `${infer Var}?`
+  ? { readonly [key in Var]?: P }
+  : S extends `${infer Var}`
+  ? { readonly [key in Var]: P }
+  : never;
 
-type QueryParams<A extends string, Seed = {}> =
-  A extends `{${infer AA}}${infer Tail}`
-    ? Merge<Seed & UrlParam<AA> & QueryParams<Tail>>
-    : Seed;
+type QueryParams<
+  A extends string,
+  Seed = {}
+> = A extends `{${infer AA}}${infer Tail}`
+  ? Merge<Seed & UrlParam<AA> & QueryParams<Tail>>
+  : Seed;
 
 export type Request<Url extends string, Body, R extends Responses> = {
   pathParams: Url extends `${infer P}?${infer _}`
@@ -70,5 +84,9 @@ export type Request<Url extends string, Body, R extends Responses> = {
     : PathParams<Url>;
   queryParams: Url extends `${infer _}?${infer Q}` ? QueryParams<Q> : never;
   body: Body;
-  response: <S extends keyof R & number>(s: S, body: Static<R[S]>, headers?: Record<string, string>) => Promise<Response<R, S>>
+  response: <S extends keyof R & number>(
+    s: S,
+    body: Static<R[S]>,
+    headers?: Record<string, string>
+  ) => Promise<Response<R, S>>;
 };

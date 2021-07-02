@@ -3,6 +3,7 @@ import Ajv from "ajv";
 import {
   APIGatewayProxyEventHeaders,
   APIGatewayProxyHandler,
+  APIGatewayProxyEvent,
 } from "aws-lambda";
 import {
   parsePathParams,
@@ -12,6 +13,7 @@ import {
 import { RouteHandlers } from "./router";
 import * as FP from "fp-ts";
 import { toOpenApiPart } from "./open-api";
+import { logRequestResponse } from "./logging";
 
 const ajv = new Ajv({ strict: false });
 
@@ -41,6 +43,7 @@ export const APIEventHandler: (
 ) => ApiGatewayHandlerWithOpenApi = ({ handlers }, cfg) => {
   const handler: ApiGatewayHandlerWithOpenApi = (event, ctx) => {
     const { logger, corsConfig } = cfg || {};
+    logRequestResponse(event, cfg);
     const thisCorsConfig: CorsConfig | undefined =
       corsConfig === true
         ? {
@@ -112,7 +115,11 @@ export const APIEventHandler: (
                 ...cfg?.defaultHeaders,
                 ...r.headers,
               },
-            }));
+            }))
+            .then((r) => {
+              logRequestResponse(r);
+              return r;
+            });
         } else {
           logger &&
             logger.info(`Unresolvable route`, {
@@ -125,6 +132,9 @@ export const APIEventHandler: (
             statusCode: 404,
             body: JSON.stringify({ message: "Not Found" }),
             headers: corsHeaders,
+          }).then((r) => {
+            logRequestResponse(r);
+            return r;
           });
         }
       } else {
@@ -139,6 +149,9 @@ export const APIEventHandler: (
           statusCode: 400,
           body: JSON.stringify({ message: "Bad request" }),
           headers: corsHeaders,
+        }).then((r) => {
+          logRequestResponse(r);
+          return r;
         });
       }
     } else {
@@ -153,6 +166,9 @@ export const APIEventHandler: (
         statusCode: 404,
         body: JSON.stringify({ message: "Not found" }),
         headers: corsHeaders,
+      }).then((r) => {
+        logRequestResponse(r);
+        return r;
       });
     }
   };
