@@ -356,6 +356,27 @@ describe("ApiHandler", () => {
     });
   });
 
+  it("should correct params for parameterised route with typed query strings", async () => {
+    const handler = LambdaRouter.build((routes) =>
+      routes.get("/people?{ids:int[]}")((r, o) =>
+        r.response(200, { ...r.pathParams, ...r.queryParams })
+      )
+    );
+    const result = await testHandler(handler)({
+      path: "/people",
+      httpMethod: "get",
+      multiValueQueryStringParameters: {
+        ids: "123,321,111,222,333".split(","),
+      },
+      body: "",
+    });
+    expect(result.statusCode).toEqual(200);
+
+    expect(JSON.parse(result.body)).toEqual({
+      ids: "123,321,111,222,333".split(",").map(i => parseInt(i)),
+    });
+  });
+
   describe("CORS Headers", () => {
     it("should add permissive cors headers when passed 'true' for cors config", async () => {
       const handler = LambdaRouter.build(

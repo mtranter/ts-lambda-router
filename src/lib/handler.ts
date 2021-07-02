@@ -72,8 +72,8 @@ export const APIEventHandler: (
       const path = route.url.split("?")[0];
       const query = route.url.split("?")[1];
       const pathParams = parsePathParams(decodeURIComponent(event.path), path);
-      const queryParams = event.queryStringParameters
-        ? parseQueryParams(event.queryStringParameters, query)
+      const queryParams = event.queryStringParameters || event.multiValueQueryStringParameters
+        ? parseQueryParams(event.queryStringParameters || {}, event.multiValueQueryStringParameters || {}, query)
         : FP.either.right({});
       const bodyObj = event.body ? JSON.parse(event.body) : null;
       const isValidBody = route.body ? ajv.validate(route.body, bodyObj) : true;
