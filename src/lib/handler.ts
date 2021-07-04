@@ -14,6 +14,7 @@ import { RouteHandlers } from "./router";
 import * as FP from "fp-ts";
 import { toOpenApiPart } from "./open-api";
 import { logRequestResponse } from "./logging";
+import { isLeft } from "fp-ts/lib/These";
 
 const ajv = new Ajv({ strict: false });
 
@@ -129,8 +130,8 @@ export const APIEventHandler: (
               headers: event.headers,
             });
           return Promise.resolve({
-            statusCode: 404,
-            body: JSON.stringify({ message: "Not Found" }),
+            statusCode: isLeft(pathParams) || isLeft(queryParams) ? 400 : 404,
+            body: JSON.stringify({ message: isLeft(pathParams) || isLeft(queryParams) ? "Bad Request" : "Not Found" }),
             headers: corsHeaders,
           }).then((r) => {
             logRequestResponse(r);

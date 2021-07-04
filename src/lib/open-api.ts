@@ -1,4 +1,4 @@
-import { RouteHandlerDefinition } from "./router";
+import { RouteHandlerDefinition, StatusCode } from "./router";
 import { Type } from "@sinclair/typebox";
 import matchAll from "string.prototype.matchall";
 import { merge } from "lodash";
@@ -29,7 +29,7 @@ const stripTypes = (p: string) => p.replace(/:\w+}/g, "}");
 
 const toOpenApiObject = (route: RouteDefinition) => {
   const model = route.body ? Type.Strict(route.body) : null;
-  const responses = Object.keys(route.responses).map(k => ({[k]: Type.Strict(route.responses[parseInt(k)])}))
+  const responses = Object.keys(route.responses).map(k => ({[k]: Type.Strict(route.responses[parseInt(k) as StatusCode]!)}))
   const path = route.url.split("?")[0];
   const query = route.url.indexOf("?") > -1 ? route.url.split("?")[1] : null;
   const params = [...matchAll(path, paramRegex)].map<OpenApiParam>((p) => ({

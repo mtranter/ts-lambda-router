@@ -123,202 +123,6 @@ describe("ApiHandler", () => {
       body: '{"creditCard": "1234 5678 8765 4321"}',
     });
     expect(result.statusCode).toEqual(400);
-    const apiSpec = handler.toOpenApiPart();
-    expect(apiSpec).toEqual({
-      "/name/{name}/age/{age}": {
-        post: {
-          parameters: [
-            {
-              in: "path",
-              name: "name",
-              required: true,
-              schema: {
-                type: "string",
-              },
-            },
-            {
-              in: "path",
-              name: "age",
-              required: true,
-              schema: {
-                type: "integer",
-              },
-            },
-          ],
-          responses: [
-            {
-              "200": {
-                anyOf: [
-                  {
-                    type: "object",
-                    additionalProperties: true,
-                  },
-                  {
-                    type: "string",
-                  },
-                ],
-              },
-            },
-            {
-              "201": {
-                anyOf: [
-                  {
-                    type: "object",
-                    additionalProperties: true,
-                  },
-                  {
-                    type: "string",
-                  },
-                ],
-              },
-            },
-            {
-              "400": {
-                anyOf: [
-                  {
-                    type: "object",
-                    additionalProperties: true,
-                  },
-                  {
-                    type: "string",
-                  },
-                ],
-              },
-            },
-            {
-              "404": {
-                anyOf: [
-                  {
-                    type: "object",
-                    additionalProperties: true,
-                  },
-                  {
-                    type: "string",
-                  },
-                ],
-              },
-            },
-            {
-              "500": {
-                anyOf: [
-                  {
-                    type: "object",
-                    additionalProperties: true,
-                  },
-                  {
-                    type: "string",
-                  },
-                ],
-              },
-            },
-          ],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  additionalProperties: false,
-                  properties: {
-                    creditCardNumber: {
-                      type: "string",
-                    },
-                  },
-                  required: ["creditCardNumber"],
-                },
-              },
-            },
-          },
-        },
-        get: {
-          parameters: [
-            {
-              in: "path",
-              name: "name",
-              required: true,
-              schema: {
-                type: "string",
-              },
-            },
-            {
-              in: "path",
-              name: "age",
-              required: true,
-              schema: {
-                type: "integer",
-              },
-            },
-          ],
-          responses: [
-            {
-              "200": {
-                anyOf: [
-                  {
-                    type: "object",
-                    additionalProperties: true,
-                  },
-                  {
-                    type: "string",
-                  },
-                ],
-              },
-            },
-            {
-              "201": {
-                anyOf: [
-                  {
-                    type: "object",
-                    additionalProperties: true,
-                  },
-                  {
-                    type: "string",
-                  },
-                ],
-              },
-            },
-            {
-              "400": {
-                anyOf: [
-                  {
-                    type: "object",
-                    additionalProperties: true,
-                  },
-                  {
-                    type: "string",
-                  },
-                ],
-              },
-            },
-            {
-              "404": {
-                anyOf: [
-                  {
-                    type: "object",
-                    additionalProperties: true,
-                  },
-                  {
-                    type: "string",
-                  },
-                ],
-              },
-            },
-            {
-              "500": {
-                anyOf: [
-                  {
-                    type: "object",
-                    additionalProperties: true,
-                  },
-                  {
-                    type: "string",
-                  },
-                ],
-              },
-            },
-          ],
-        },
-      },
-    });
   });
   it("should return 400 for poorly formatted url", async () => {
     const handler = LambdaRouter.build((r) =>
@@ -331,7 +135,7 @@ describe("ApiHandler", () => {
       httpMethod: "get",
       body: "",
     });
-    expect(result.statusCode).toEqual(404);
+    expect(result.statusCode).toEqual(400);
   });
   it("should correct params for parameterised route with query strings", async () => {
     const handler = LambdaRouter.build((routes) =>
@@ -356,7 +160,7 @@ describe("ApiHandler", () => {
     });
   });
 
-  it("should correct params for parameterised route with typed query strings", async () => {
+  it("should return 200 for for route with typed query strings and valid values", async () => {
     const handler = LambdaRouter.build((routes) =>
       routes.get("/people?{ids:int[]}")((r, o) =>
         r.response(200, { ...r.pathParams, ...r.queryParams })
@@ -373,8 +177,25 @@ describe("ApiHandler", () => {
     expect(result.statusCode).toEqual(200);
 
     expect(JSON.parse(result.body)).toEqual({
-      ids: "123,321,111,222,333".split(",").map(i => parseInt(i)),
+      ids: "123,321,111,222,333".split(",").map((i) => parseInt(i)),
     });
+  });
+  it("should return 400 for for route with typed query strings and invalid values", async () => {
+    const handler = LambdaRouter.build((routes) =>
+      routes.get("/people?{ids:int[]}")((r, o) =>
+        r.response(200, { ...r.pathParams, ...r.queryParams })
+      )
+    );
+    const result = await testHandler(handler)({
+      path: "/people",
+      httpMethod: "get",
+      multiValueQueryStringParameters: {
+        ids: "aaa,321,ccc,222,333".split(","),
+      },
+      body: "",
+    });
+    expect(result.statusCode).toEqual(400);
+
   });
 
   describe("CORS Headers", () => {

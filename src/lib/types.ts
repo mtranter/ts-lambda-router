@@ -2,7 +2,7 @@
 
 import { Static } from "@sinclair/typebox";
 import { PathParamParser, PathParamParsers } from "./path-param-parser";
-import { Responses, Response } from "./router";
+import { Responses, Response, StatusCode } from "./router";
 
 export type Logger = {
   info: (msg: string, metadata?: object) => void;
@@ -84,9 +84,9 @@ export type Request<Url extends string, Body, R extends Responses> = {
     : PathParams<Url>;
   queryParams: Url extends `${infer _}?${infer Q}` ? QueryParams<Q> : never;
   body: Body;
-  response: <S extends keyof R & number>(
+  response: <S extends StatusCode>(
     s: S,
-    body: Static<R[S]>,
+    body: Static<S extends keyof R ? R[S] : any>,
     headers?: Record<string, string>
   ) => Promise<Response<R, S>>;
 };

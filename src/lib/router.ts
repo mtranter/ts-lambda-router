@@ -4,13 +4,17 @@ import {
   Context,
 } from "aws-lambda";
 import { Request } from "./types";
-import { Static, TSchema, Type } from "@sinclair/typebox";
+import { Static, TAny, TSchema, Type } from "@sinclair/typebox";
 
 type AnyRequest<TBody> = {
   pathParams: any;
   queryParams: any;
   body: TBody;
-  response: (statusCode: number, body: any, handlers?: Record<string, string>) => Promise<Response<any, any>>;
+  response: (
+    statusCode: number,
+    body: any,
+    handlers?: Record<string, string>
+  ) => Promise<Response<any, any>>;
 };
 
 export type RouteHandlerDefinition = {
@@ -26,9 +30,9 @@ export type RouteHandlerDefinition = {
 
 type HttpMethod<R, M extends HTTPMethod> = <
   A extends string,
-  S extends NumericKeysOf<Resp>,
+  S extends StatusCode,
   B extends TSchema = never,
-  Resp extends Responses = typeof DefaultResponses
+  Resp extends Responses = AnyType
 >(
   path: A,
   bodyOrResponses?: M extends HTTPRead ? Resp : B,
@@ -57,23 +61,32 @@ type HTTPMethod = HTTPRead | HTTPWrite;
 
 type NumericKeysOf<T> = number &
   keyof { [I in keyof T]: T[I] extends number ? I : never };
-export type Responses = { [K: number]: TSchema };
+export type Responses = Partial<{ [k in StatusCode]: TSchema }>;
 
-export type Response<R extends Responses, Status extends number> = {
+export type Response<
+  R extends Responses,
+  Status extends keyof R & StatusCode
+> = {
   statusCode: Status;
   headers?: {
     [header: string]: boolean | number | string;
   };
-  body: Static<R[Status]>;
+  body: Static<Status extends keyof R ? Static<R[Status]> : any>;
 };
 
-const AnyType = Type.Union([Type.Dict(true as any), Type.String()]);
+const StatusCodes = [
+  200, 201, 202, 203, 204, 205, 206, 207, 208, 226, 300, 301, 302, 303, 304,
+  305, 306, 307, 308, 400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410,
+  411, 412, 413, 414, 415, 416, 417, 418, 420, 422, 423, 424, 425, 426, 428,
+  429, 431, 444, 449, 450, 451, 499, 500, 501, 502, 503, 504, 505, 506, 507,
+  508, 509, 510, 511, 598, 599,
+] as const;
+export type StatusCode = typeof StatusCodes[number] & number;
+type AnyType = Record<StatusCode, TAny>;
 const DefaultResponses = {
-  200: AnyType,
-  201: AnyType,
-  400: AnyType,
-  404: AnyType,
-  500: AnyType,
+  200: Type.Any({
+    description: "OK",
+  }),
 };
 
 export const Router = (
@@ -84,8 +97,8 @@ export const Router = (
     <
       A extends string,
       B extends TSchema,
-      S extends number,
-      R extends Responses = typeof DefaultResponses
+      S extends StatusCode,
+      R extends Responses = AnyType
     >(
       path: A,
       bodyOrResponses?: M extends HTTPRead ? R : B,

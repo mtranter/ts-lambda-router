@@ -27,6 +27,9 @@ const PaserErrorSemigroup: Semigroup<ParserError> = {
 };
 
 export class PathParamParsers {
+  string: PathParamParser<string> = {
+    parse: (s) => right(s[0]),
+  };
   int: PathParamParser<number> = {
     parse: (s) => {
       const result = parseInt(s[0]);
