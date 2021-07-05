@@ -28,7 +28,7 @@ const PaserErrorSemigroup: Semigroup<ParserError> = {
 
 export class PathParamParsers {
   string: PathParamParser<string> = {
-    parse: (s) => right(s[0]),
+    parse: (s) => right(decodeURIComponent(s[0]))
   };
   int: PathParamParser<number> = {
     parse: (s) => {
@@ -48,7 +48,7 @@ export class PathParamParsers {
   };
   "string[]": PathParamParser<string[]> = {
     parse: (s) => {
-      return right(s);
+      return right(s.map(decodeURIComponent));
     },
   };
   "int[]": PathParamParser<number[]> = {
