@@ -1,22 +1,26 @@
 import { toOpenApiPart } from "./open-api";
-import jsYaml from 'js-yaml'
-import { Type } from '@sinclair/typebox'
+import jsYaml from "js-yaml";
+import { Type } from "@sinclair/typebox";
 
-
-describe('toOpenApiPart', () => {
-  it('should return a valid open api', () => {
-    const api = toOpenApiPart([{
-      url: '/people/{name:string}/aged/{age:int}?{menOnly:bool?}',
-      method: 'post',
-      responses: {
-        200: Type.String()
+describe("toOpenApiPart", () => {
+  it("should return a valid open api", () => {
+    const api = toOpenApiPart([
+      {
+        url: "/people/{name:string}/aged/{age:int}?{menOnly:bool?}",
+        method: "post",
+        responses: {
+          200: Type.String(),
+        },
+        body: Type.Object(
+          {
+            name: Type.String(),
+          },
+          { additionalProperties: false }
+        ),
       },
-      body: Type.Object({
-        name: Type.String()
-      })
-    }])
-    expect(api).toBeTruthy()
-    const ymlDef = jsYaml.dump(api)
+    ]);
+    expect(api).toBeTruthy();
+    const ymlDef = jsYaml.dump(api);
     expect(ymlDef).toEqual(`/people/{name}/aged/{age}:
   post:
     parameters:
@@ -38,13 +42,13 @@ describe('toOpenApiPart', () => {
       content:
         application/json:
           schema:
-            type: object
             additionalProperties: false
+            type: object
             properties:
               name:
                 type: string
             required:
               - name
-`)
-    })
-})
+`);
+  });
+});

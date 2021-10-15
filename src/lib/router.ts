@@ -1,10 +1,12 @@
 import {
   APIGatewayProxyEvent,
-  APIGatewayProxyResult,
+  APIGatewayProxyEventV2,
   Context,
 } from "aws-lambda";
 import { Request } from "./types";
 import { Static, TAny, TSchema, Type } from "@sinclair/typebox";
+
+export type APIGatewayVersion = "V1" | "V2";
 
 type AnyRequest<TBody> = {
   pathParams: any;
@@ -17,14 +19,19 @@ type AnyRequest<TBody> = {
   ) => Promise<Response<any, any>>;
 };
 
-export type RouteHandlerDefinition = {
+export type RouteHandlerDefinition<V extends APIGatewayVersion> = {
   method: string;
   url: string;
   body?: TSchema;
   responses: Responses;
   handler: (
     req: AnyRequest<any>,
-    apiParams: { originalEvent: APIGatewayProxyEvent; context: Context }
+    apiParams: {
+      originalEvent: V extends "V1"
+        ? APIGatewayProxyEvent
+        : APIGatewayProxyEventV2;
+      context: Context;
+    }
   ) => Promise<Response<any, any>>;
 };
 
@@ -38,9 +45,9 @@ type HttpMethod<R, M extends HTTPMethod> = <
   bodyOrResponses?: M extends HTTPRead ? Resp : B,
   responses?: M extends HTTPRead ? never : Resp
 ) => (
-  handler: (
+  handler: <V extends APIGatewayVersion>(
     req: Request<A, Static<B>, Resp>,
-    originalEvent: { originalEvent: APIGatewayProxyEvent; context: Context }
+    originalEvent: { originalEvent: VersionedRequest<V>; context: Context }
   ) => Promise<Response<Resp, S>>
 ) => Router<R>;
 
@@ -53,7 +60,9 @@ export type Router<R> = R & {
   delete: HttpMethod<R, "delete">;
 };
 
-export type RouteHandlers = { handlers: readonly RouteHandlerDefinition[] };
+export type RouteHandlers<V extends APIGatewayVersion> = {
+  handlers: readonly RouteHandlerDefinition<V>[];
+};
 
 type HTTPRead = "get" | "options" | "head";
 type HTTPWrite = "post" | "put" | "delete";
@@ -89,11 +98,15 @@ const DefaultResponses = {
   }),
 };
 
-export const Router = (
-  handlers: readonly RouteHandlerDefinition[] = []
-): Router<RouteHandlers> => {
+type VersionedRequest<V extends APIGatewayVersion> = V extends "V1"
+  ? APIGatewayProxyEvent
+  : APIGatewayProxyEventV2;
+
+export const Router = <V extends APIGatewayVersion>(
+  handlers: readonly RouteHandlerDefinition<V>[] = []
+): Router<RouteHandlers<V>> => {
   const buildHandler =
-    <M extends HTTPMethod>(method: M): HttpMethod<RouteHandlers, M> =>
+    <M extends HTTPMethod>(method: M): HttpMethod<RouteHandlers<V>, M> =>
     <
       A extends string,
       B extends TSchema,
@@ -107,13 +120,13 @@ export const Router = (
     (
       handler: (
         req: Request<A, Static<B>, R>,
-        originalEvent: { originalEvent: APIGatewayProxyEvent; context: Context }
+        originalEvent: { originalEvent: VersionedRequest<V>; context: Context }
       ) => Promise<Response<R, S>>
     ) => {
       const isSafe = ["get", "options", "head"].includes(method);
       const body = isSafe ? undefined : (bodyOrResponses as TSchema);
       const _responses = isSafe ? (bodyOrResponses as R) : responses;
-      return Router([
+      return Router<V>([
         {
           method,
           url: path,

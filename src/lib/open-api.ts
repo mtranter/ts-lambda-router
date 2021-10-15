@@ -73,7 +73,7 @@ const toOpenApiObject = (route: RouteDefinition) => {
   };
 };
 
-export type RouteDefinition = Omit<RouteHandlerDefinition, "handler">;
+export type RouteDefinition = Omit<RouteHandlerDefinition<'V1'>, "handler">;
 
 export const toOpenApiPart = (routes: readonly RouteDefinition[]): object =>
   routes.reduce((p, n) => merge(p, toOpenApiObject(n)), {});

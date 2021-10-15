@@ -1,4 +1,4 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
+import { APIGatewayProxyEvent, APIGatewayProxyEventV2, APIGatewayProxyResult, APIGatewayProxyResultV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 import { RouterConfig } from "./types";
 
 const keysExcept = (r: Record<string, unknown>, ignore?: string[]) =>
@@ -27,6 +27,27 @@ export const logRequestResponse = (
       ...(bodyToLog ? { body: bodyToLog } : undefined),
       headers: headersToLog,
       multiValueHeaders: mvHeadersToLog,
+    };
+    logger.info("Request received", objectToLog);
+  }
+};
+
+
+export const logRequestResponsev2 = (
+  event: APIGatewayProxyEventV2 | APIGatewayProxyStructuredResultV2,
+  config?: RouterConfig
+) => {
+  const { logConfig } = config || {};
+  const logger = logConfig?.logger || (config || {}).logger;
+  if (logger && logConfig?.logRequests) {
+    const { body, headers, ...rest } = event;
+    const headersToLog = headers  ? keysExcept(headers, logConfig.ignoredHeaders) : {};
+
+    const bodyToLog = logConfig.logRequestBody ? body : undefined;
+    const objectToLog = {
+      ...rest,
+      ...(bodyToLog ? { body: bodyToLog } : undefined),
+      headers: headersToLog,
     };
     logger.info("Request received", objectToLog);
   }

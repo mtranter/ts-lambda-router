@@ -2,8 +2,7 @@ import { CorsConfig, Logger, RouterConfig } from "./types";
 import Ajv from "ajv";
 import {
   APIGatewayProxyEventHeaders,
-  APIGatewayProxyHandler,
-  APIGatewayProxyEvent,
+  APIGatewayProxyHandlerV2,
 } from "aws-lambda";
 import {
   parsePathParams,
@@ -13,8 +12,9 @@ import {
 import { RouteHandlers } from "./router";
 import * as FP from "fp-ts";
 import { toOpenApiPart } from "./open-api";
-import { logRequestResponse } from "./logging";
+import { logRequestResponse, logRequestResponsev2 } from "./logging";
 import { isLeft } from "fp-ts/lib/These";
+import { VersionedHandlerType } from "./handler-v1";
 
 const ajv = new Ajv({ strict: false });
 
@@ -34,17 +34,17 @@ const buildCorsHeaders = (
   "Access-Control-Allow-Credentials": cfg.allowCredentials.toString(),
 });
 
-export type ApiGatewayHandlerWithOpenApi = APIGatewayProxyHandler & {
+export type ApiGatewayHandlerWithOpenApi = APIGatewayProxyHandlerV2 & {
   toOpenApiPart: () => object;
 };
 
-export const APIEventHandler: (
-  routes: RouteHandlers,
+export const APIEventHandlerV2: (
+  routes: RouteHandlers<"V2">,
   config?: RouterConfig
-) => ApiGatewayHandlerWithOpenApi = ({ handlers }, cfg) => {
+) => VersionedHandlerType<"V2"> = ({ handlers }, cfg) => {
   const handler: ApiGatewayHandlerWithOpenApi = (event, ctx) => {
     const { logger, corsConfig } = cfg || {};
-    logRequestResponse(event, cfg);
+    logRequestResponsev2(event, cfg);
     const thisCorsConfig: CorsConfig | undefined =
       corsConfig === true
         ? {
@@ -55,10 +55,14 @@ export const APIEventHandler: (
           }
         : corsConfig;
     const route = handlers
-      .filter((h) => event.httpMethod.toLowerCase() === h.method.toLowerCase())
+      .filter(
+        (h) =>
+          event.requestContext.http.method.toLowerCase() ===
+          h.method.toLowerCase()
+      )
       .filter((h) => {
         const handlerSegments = h.url.split("?")[0].split("/");
-        const routeSegments = event.path.split("?")[0].split("/");
+        const routeSegments = event.rawPath.split("?")[0].split("/");
         return (
           handlerSegments.length === routeSegments.length &&
           handlerSegments.every(
@@ -71,10 +75,13 @@ export const APIEventHandler: (
       : {};
     if (route) {
       const path = route.url.split("?")[0];
-      const query = route.url.split("?")[1];
-      const pathParams = parsePathParams(decodeURIComponent(event.path), path);
-      const queryParams = event.queryStringParameters || event.multiValueQueryStringParameters
-        ? parseQueryParams(event.queryStringParameters || {}, event.multiValueQueryStringParameters || {}, query)
+      const query = event.rawQueryString;
+      const pathParams = parsePathParams(
+        decodeURIComponent(event.rawPath),
+        path
+      );
+      const queryParams = event.queryStringParameters
+        ? parseQueryParams(event.queryStringParameters || {}, {}, query)
         : FP.either.right({});
       const bodyObj = event.body ? JSON.parse(event.body) : null;
       const isValidBody = route.body ? ajv.validate(route.body, bodyObj) : true;
@@ -125,13 +132,18 @@ export const APIEventHandler: (
           logger &&
             logger.info(`Unresolvable route`, {
               body: event.body,
-              path: event.path,
+              path: event.rawPath,
               query: event.queryStringParameters,
               headers: event.headers,
             });
           return Promise.resolve({
             statusCode: isLeft(pathParams) || isLeft(queryParams) ? 400 : 404,
-            body: JSON.stringify({ message: isLeft(pathParams) || isLeft(queryParams) ? "Bad Request" : "Not Found" }),
+            body: JSON.stringify({
+              message:
+                isLeft(pathParams) || isLeft(queryParams)
+                  ? "Bad Request"
+                  : "Not Found",
+            }),
             headers: corsHeaders,
           }).then((r) => {
             logRequestResponse(r);
@@ -142,7 +154,7 @@ export const APIEventHandler: (
         logger &&
           logger.info(`Request body does not much expected schema`, {
             body: event.body,
-            path: event.path,
+            path: event.rawPath,
             query: event.queryStringParameters,
             headers: event.headers,
           });
@@ -159,7 +171,7 @@ export const APIEventHandler: (
       logger &&
         logger.info(`Unresolvable route`, {
           body: event.body,
-          path: event.path,
+          path: event.rawPath,
           query: event.queryStringParameters,
           headers: event.headers,
         });

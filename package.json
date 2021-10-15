@@ -23,7 +23,7 @@
     "typescript": "^4.2.4"
   },
   "dependencies": {
-    "@sinclair/typebox": "^0.16.5",
+    "@sinclair/typebox": "^0.20.5",
     "ajv": "^7.1.1",
     "fp-ts": "^2.10.5",
     "js-yaml": "^4.1.0",
