@@ -41,7 +41,9 @@ describe("ApiHandler", () => {
 
   it("should return 404 for unknown route", async () => {
     const handler = LambdaRouter.build((r) =>
-      r.get("/", { 200: Type.String() })((r, o) => r.response(200, "OK"))
+      r.get("/", { responsesSchema: { 200: Type.String() } })((r, o) =>
+        r.response(200, "OK")
+      )
     );
     const result = await testHandler(handler)({
       path: "/hello",
@@ -195,7 +197,6 @@ describe("ApiHandler", () => {
       body: "",
     });
     expect(result.statusCode).toEqual(400);
-
   });
 
   describe("CORS Headers", () => {

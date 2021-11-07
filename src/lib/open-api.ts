@@ -27,9 +27,34 @@ const mapToOpenApiType = (s?: string): "integer" | "string" | "boolean" => {
 
 const stripTypes = (p: string) => p.replace(/:\w+}/g, "}");
 
-const toOpenApiObject = (route: RouteDefinition) => {
+export type ApiInfo = {
+  title: string;
+  description?: string;
+  version: string;
+};
+
+const toOpenApiObject = (
+  route: RouteDefinition,
+  payloadFormatVersion: "1.0" | "2.0",
+  apiInfo: ApiInfo,
+  functionArn: string
+) => {
   const model = route.body ? Type.Strict(route.body) : null;
-  const responses = Object.keys(route.responses).map(k => ({[k]: Type.Strict(route.responses[parseInt(k) as StatusCode]!)}))
+  const responses = Object.keys(route.responses).reduce(
+    (p, k) => ({
+      [parseInt(k)]: {
+        description:
+          route.responses[parseInt(k) as StatusCode]?.description || "",
+        content: {
+          "application/json": {
+            schema: Type.Strict(route.responses[parseInt(k) as StatusCode]!),
+          },
+        },
+      },
+      ...p,
+    }),
+    {}
+  );
   const path = route.url.split("?")[0];
   const query = route.url.indexOf("?") > -1 ? route.url.split("?")[1] : null;
   const params = [...matchAll(path, paramRegex)].map<OpenApiParam>((p) => ({
@@ -51,7 +76,7 @@ const toOpenApiObject = (route: RouteDefinition) => {
       }))
     : null;
   const allParams = params.concat(queryParams || []);
-  return {
+  const paths = {
     [stripTypes(path)]: {
       [route.method.toLowerCase()]: {
         parameters: allParams,
@@ -68,12 +93,33 @@ const toOpenApiObject = (route: RouteDefinition) => {
               },
             }
           : {}),
+        "x-amazon-apigateway-integration": {
+          type: "AWS_PROXY",
+          httpMethod: route.method.toUpperCase(),
+          uri: functionArn,
+          payloadFormatVersion,
+        },
+        ...(route.useIamAuth ? { "x-amazon-apigateway-auth": "AWS_IAM" } : {}),
       },
     },
   };
+  return {
+    openapi: "3.0.1",
+    info: apiInfo,
+    paths,
+  };
 };
 
-export type RouteDefinition = Omit<RouteHandlerDefinition<'V1'>, "handler">;
+export type RouteDefinition = Omit<RouteHandlerDefinition<"V1">, "handler">;
 
-export const toOpenApiPart = (routes: readonly RouteDefinition[]): object =>
-  routes.reduce((p, n) => merge(p, toOpenApiObject(n)), {});
+export const toOpenApi = (
+  routes: readonly RouteDefinition[],
+  payloadFormatVersion: "1.0" | "2.0",
+  apiInfo: ApiInfo,
+  functionArn: string
+): object =>
+  routes.reduce(
+    (p, n) =>
+      merge(p, toOpenApiObject(n, payloadFormatVersion, apiInfo, functionArn)),
+    {}
+  );

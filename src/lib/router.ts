@@ -24,6 +24,7 @@ export type RouteHandlerDefinition<V extends APIGatewayVersion> = {
   url: string;
   body?: TSchema;
   responses: Responses;
+  useIamAuth: boolean;
   handler: (
     req: AnyRequest<any>,
     apiParams: {
@@ -35,6 +36,11 @@ export type RouteHandlerDefinition<V extends APIGatewayVersion> = {
   ) => Promise<Response<any, any>>;
 };
 
+type RouteConfig<Resp extends Responses> = {
+  responsesSchema?: Resp;
+  useIamAuth?: boolean;
+};
+
 type HttpMethod<R, M extends HTTPMethod> = <
   A extends string,
   S extends StatusCode,
@@ -42,8 +48,8 @@ type HttpMethod<R, M extends HTTPMethod> = <
   Resp extends Responses = AnyType
 >(
   path: A,
-  bodyOrResponses?: M extends HTTPRead ? Resp : B,
-  responses?: M extends HTTPRead ? never : Resp
+  bodyOrConfig?: M extends HTTPRead ? RouteConfig<Resp> : B,
+  config?: M extends HTTPRead ? never : RouteConfig<Resp>
 ) => (
   handler: <V extends APIGatewayVersion>(
     req: Request<A, Static<B>, Resp>,
@@ -52,6 +58,7 @@ type HttpMethod<R, M extends HTTPMethod> = <
 ) => Router<R>;
 
 export type Router<R> = R & {
+  compose: (other: Router<R>) => Router<R>;
   get: HttpMethod<R, "get">;
   head: HttpMethod<R, "head">;
   options: HttpMethod<R, "options">;
@@ -114,8 +121,8 @@ export const Router = <V extends APIGatewayVersion>(
       R extends Responses = AnyType
     >(
       path: A,
-      bodyOrResponses?: M extends HTTPRead ? R : B,
-      responses?: M extends HTTPRead ? never : R
+      bodyOrConfig?: M extends HTTPRead ? RouteConfig<R> : B,
+      configOrNothing?: M extends HTTPRead ? never : RouteConfig<R>
     ) =>
     (
       handler: (
@@ -124,21 +131,26 @@ export const Router = <V extends APIGatewayVersion>(
       ) => Promise<Response<R, S>>
     ) => {
       const isSafe = ["get", "options", "head"].includes(method);
-      const body = isSafe ? undefined : (bodyOrResponses as TSchema);
-      const _responses = isSafe ? (bodyOrResponses as R) : responses;
+      const body = isSafe ? undefined : (bodyOrConfig as TSchema);
+      const config: RouteConfig<R> = (
+        isSafe ? bodyOrConfig : configOrNothing
+      ) as RouteConfig<R>;
+      const responses = config?.responsesSchema || DefaultResponses;
       return Router<V>([
         {
           method,
           url: path,
           handler,
           body,
-          responses: _responses || DefaultResponses,
+          responses,
+          useIamAuth: !!config?.useIamAuth,
         },
         ...handlers,
       ]);
     };
   return {
     handlers,
+    compose: (other) => Router([...handlers, ...other.handlers]),
     get: buildHandler("get"),
     head: buildHandler("head"),
     options: buildHandler("options"),

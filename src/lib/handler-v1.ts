@@ -12,7 +12,7 @@ import {
 } from "./path-param-parser";
 import { APIGatewayVersion, RouteHandlers } from "./router";
 import * as FP from "fp-ts";
-import { toOpenApiPart } from "./open-api";
+import { ApiInfo, toOpenApi } from "./open-api";
 import { logRequestResponse } from "./logging";
 import { isLeft } from "fp-ts/lib/These";
 
@@ -35,11 +35,11 @@ const buildCorsHeaders = (
 });
 
 export type ApiGatewayHandlerWithOpenApi = APIGatewayProxyHandler & {
-  toOpenApiPart: () => object;
+  toOpenApi: (apiInfo: ApiInfo, functionArn: string) => object;
 };
 
 export type ApiGatewayHandlerV2WithOpenApi = APIGatewayProxyHandlerV2 & {
-  toOpenApiPart: () => object;
+  toOpenApi: (apiInfo: ApiInfo, functionArn: string) => object;
 };
 
 export type VersionedHandlerType<V extends APIGatewayVersion> = V extends "V1"
@@ -192,7 +192,8 @@ export const APIEventHandler: (
     }
   };
 
-  handler.toOpenApiPart = () => toOpenApiPart(handlers);
+  handler.toOpenApi = (apiInfo: ApiInfo, functionArn: string) =>
+    toOpenApi(handlers, "1.0", apiInfo, functionArn);
 
   return handler;
 };

@@ -14,22 +14,19 @@ export const handler: APIGatewayProxyHandler = LambdaRouter.build((routes) =>
         r.response(a ? 200 : 404, a)
       )
     )
-    .post(
-      "/accounts",
-      Account,
-      AccountCreateResponses
-    )((r) =>
-    Domain.saveAccount(r.body)
-      .then((id) =>
-        r.response(201, {
-          accountId: id,
+    .post("/accounts", Account, { responsesSchema: AccountCreateResponses })(
+    (r) =>
+      Domain.saveAccount(r.body)
+        .then((id) =>
+          r.response(201, {
+            accountId: id,
+          })
+        )
+        .catch((e) => {
+          console.log("Error saving account", e);
+          return r.response(400, {
+            message: "Error",
+          });
         })
-      )
-      .catch((e) => {
-        console.log("Error saving account", e);
-        return r.response(400, {
-          message: "Error",
-        });
-      })
   )
 );
