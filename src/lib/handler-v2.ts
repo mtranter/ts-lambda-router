@@ -11,7 +11,7 @@ import {
 } from "./path-param-parser";
 import { RouteHandlers } from "./router";
 import * as FP from "fp-ts";
-import { ApiInfo, toOpenApi } from "./open-api";
+import { ApiInfo, SecurityScheme, toOpenApi } from "./open-api";
 import { logRequestResponse, logRequestResponsev2 } from "./logging";
 import { isLeft } from "fp-ts/lib/These";
 import { VersionedHandlerType } from "./handler-v1";
@@ -186,8 +186,13 @@ export const APIEventHandlerV2: (
     }
   };
 
-  handler.toOpenApi = (apiInfo: ApiInfo, functionArn: string) =>
-    toOpenApi(handlers, "2.0", apiInfo, functionArn);
+  handler.toOpenApi = (
+    apiInfo: ApiInfo,
+    functionArn: string,
+    securitySchemes?: {
+      [k: string]: SecurityScheme;
+    }
+  ) => toOpenApi(handlers, "2.0", apiInfo, functionArn, securitySchemes);
 
   return handler;
 };

@@ -25,13 +25,17 @@ describe("toOpenApiPart", () => {
         {
           url: "/people/{name:string}/aged/{age:int}?{menOnly:bool?}",
           method: "post",
-          useIamAuth: true,
+          useIamAuth: false,
+          security: {
+            scheme: "jwt-authorizer-autofind",
+            scopes: [],
+          },
           responses: {
             200: Type.String(),
           },
           body: Type.Object(
             {
-              name: Type.String({description: "The Name"}),
+              name: Type.String({ description: "The Name" }),
             },
             { additionalProperties: false }
           ),
@@ -39,9 +43,23 @@ describe("toOpenApiPart", () => {
       ],
       "1.0",
       { title: "Test Api", version: "1.0.0" },
-      "<arn placeholder>"
+      "<arn placeholder>",
+      {
+        "jwt-authorizer-autofind": {
+          type: "openIdConnect",
+          openIdConnectUrl:
+            "https://cognito-idp.region.amazonaws.com/userPoolId/.well-known/openid-configuration",
+          "x-amazon-apigateway-authorizer": {
+            type: "jwt",
+            jwtConfiguration: {
+              audience: ["audience1", "audience2"],
+            },
+            identitySource: "$request.header.Authorization",
+          },
+        },
+      }
     );
     expect(api).toBeTruthy();
-    console.log(JSON.stringify(api))
+    console.log(JSON.stringify(api));
   });
 });

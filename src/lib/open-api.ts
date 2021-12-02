@@ -33,11 +33,42 @@ export type ApiInfo = {
   version: string;
 };
 
+type ApiGatewayOpenIdAuthorizerConfiguration = {
+  type: "jwt";
+  jwtConfiguration: {
+    audience: string[];
+  };
+  identitySource: string;
+};
+type ApiGatewayOAuthAuthorizerConfiguration = {
+  type: "jwt";
+  jwtConfiguration: {
+    issuer: string;
+    audience: string[];
+  };
+};
+
+type OpenIdSecurityScheme = {
+  type: "openIdConnect";
+  openIdConnectUrl: string;
+  "x-amazon-apigateway-authorizer": ApiGatewayOpenIdAuthorizerConfiguration;
+};
+
+type OAuthSecurityScheme = {
+  type: "oauth2";
+  "x-amazon-apigateway-authorizer": ApiGatewayOAuthAuthorizerConfiguration;
+};
+
+export type SecurityScheme = OpenIdSecurityScheme | OAuthSecurityScheme;
+
 const toOpenApiObject = (
   route: RouteDefinition,
   payloadFormatVersion: "1.0" | "2.0",
   apiInfo: ApiInfo,
-  functionArn: string
+  functionArn: string,
+  securitySchemes?: {
+    [k: string]: SecurityScheme;
+  }
 ) => {
   const model = route.body ? Type.Strict(route.body) : null;
   const responses = Object.keys(route.responses).reduce(
@@ -101,6 +132,9 @@ const toOpenApiObject = (
           payloadFormatVersion,
         },
         ...(route.useIamAuth ? { "x-amazon-apigateway-auth": "AWS_IAM" } : {}),
+        ...(route.security
+          ? { security: [{ [route.security.scheme]: route.security.scopes }] }
+          : {}),
       },
     },
   };
@@ -108,6 +142,11 @@ const toOpenApiObject = (
     openapi: "3.0.1",
     info: apiInfo,
     paths,
+    ...(securitySchemes
+      ? {
+          components: { securitySchemes },
+        }
+      : {}),
   };
 };
 
@@ -117,10 +156,22 @@ export const toOpenApi = (
   routes: readonly RouteDefinition[],
   payloadFormatVersion: "1.0" | "2.0",
   apiInfo: ApiInfo,
-  functionArn: string
+  functionArn: string,
+  securitySchemes?: {
+    [k: string]: SecurityScheme;
+  }
 ): object =>
   routes.reduce(
     (p, n) =>
-      merge(p, toOpenApiObject(n, payloadFormatVersion, apiInfo, functionArn)),
+      merge(
+        p,
+        toOpenApiObject(
+          n,
+          payloadFormatVersion,
+          apiInfo,
+          functionArn,
+          securitySchemes
+        )
+      ),
     {}
   );

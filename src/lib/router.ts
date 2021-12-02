@@ -25,6 +25,10 @@ export type RouteHandlerDefinition<V extends APIGatewayVersion> = {
   body?: TSchema;
   responses: Responses;
   useIamAuth: boolean;
+  security?: {
+    scheme: string;
+    scopes: string[];
+  };
   handler: (
     req: AnyRequest<any>,
     apiParams: {
@@ -39,15 +43,16 @@ export type RouteHandlerDefinition<V extends APIGatewayVersion> = {
 type RouteConfig<Resp extends Responses> = {
   responsesSchema?: Resp;
   useIamAuth?: boolean;
+  security?: {
+    [k: string]: string[];
+  };
 };
 
 const Handler = {
   of: <I, O>(handler: (input: I, ctx: Context) => Promise<O>) => ({
     run: (i: I, ctx: Context) => handler(i, ctx),
     compose: <OO>(next: (o: O, ctx: Context) => Promise<OO>) =>
-    Handler.of<I, OO>((i, ctx) =>
-        handler(i, ctx).then((o) => next(o, ctx))
-      ),
+      Handler.of<I, OO>((i, ctx) => handler(i, ctx).then((o) => next(o, ctx))),
   }),
 };
 
@@ -85,17 +90,16 @@ type HTTPRead = "get" | "options" | "head";
 type HTTPWrite = "post" | "put" | "delete";
 type HTTPMethod = HTTPRead | HTTPWrite;
 
-type RequireAtLeastOne<T, Keys extends keyof T = keyof T> =
-    Pick<T, Exclude<keyof T, Keys>> 
-    & {
-        [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>
-    }[Keys]
+type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<
+  T,
+  Exclude<keyof T, Keys>
+> &
+  {
+    [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>;
+  }[Keys];
 export type Responses = RequireAtLeastOne<{ [k in StatusCode]: TSchema }>;
 
-export type Response<
-  R extends Responses,
-  Status extends StatusCode
-> = {
+export type Response<R extends Responses, Status extends StatusCode> = {
   statusCode: Status;
   headers?: {
     [header: string]: boolean | number | string;
