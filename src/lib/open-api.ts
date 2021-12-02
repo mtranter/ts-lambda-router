@@ -44,7 +44,8 @@ const toOpenApiObject = (
     (p, k) => ({
       [parseInt(k)]: {
         description:
-          route.responses[parseInt(k) as StatusCode]?.description || "",
+          (route.responses[parseInt(k) as StatusCode]?.$static as any)
+            ?.description || "",
         content: {
           "application/json": {
             schema: Type.Strict(route.responses[parseInt(k) as StatusCode]!),
@@ -55,8 +56,8 @@ const toOpenApiObject = (
     }),
     {}
   );
-  const path = route.url.split("?")[0];
-  const query = route.url.indexOf("?") > -1 ? route.url.split("?")[1] : null;
+  const [path, ...querys] = route.url.split("?");
+  const query = querys.join("");
   const params = [...matchAll(path, paramRegex)].map<OpenApiParam>((p) => ({
     in: "path",
     name: p.groups!["name"]!,
@@ -67,7 +68,7 @@ const toOpenApiObject = (
   }));
   const queryParams = query
     ? [...matchAll(query, paramRegex)].map<OpenApiParam>((p) => ({
-        in: "path",
+        in: "query",
         name: p.groups!["name"]!,
         required: !!p.groups!["optional"],
         schema: {

@@ -3,7 +3,7 @@ import {
   APIGatewayProxyEventV2,
   Context,
 } from "aws-lambda";
-import { Request } from "./types";
+import { ExtractSchema, Request } from "./types";
 import { Static, TAny, TSchema, Type } from "@sinclair/typebox";
 
 export type APIGatewayVersion = "V1" | "V2";
@@ -41,6 +41,16 @@ type RouteConfig<Resp extends Responses> = {
   useIamAuth?: boolean;
 };
 
+const Handler = {
+  of: <I, O>(handler: (input: I, ctx: Context) => Promise<O>) => ({
+    run: (i: I, ctx: Context) => handler(i, ctx),
+    compose: <OO>(next: (o: O, ctx: Context) => Promise<OO>) =>
+    Handler.of<I, OO>((i, ctx) =>
+        handler(i, ctx).then((o) => next(o, ctx))
+      ),
+  }),
+};
+
 type HttpMethod<R, M extends HTTPMethod> = <
   A extends string,
   S extends StatusCode,
@@ -75,19 +85,22 @@ type HTTPRead = "get" | "options" | "head";
 type HTTPWrite = "post" | "put" | "delete";
 type HTTPMethod = HTTPRead | HTTPWrite;
 
-type NumericKeysOf<T> = number &
-  keyof { [I in keyof T]: T[I] extends number ? I : never };
-export type Responses = Partial<{ [k in StatusCode]: TSchema }>;
+type RequireAtLeastOne<T, Keys extends keyof T = keyof T> =
+    Pick<T, Exclude<keyof T, Keys>> 
+    & {
+        [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>
+    }[Keys]
+export type Responses = RequireAtLeastOne<{ [k in StatusCode]: TSchema }>;
 
 export type Response<
   R extends Responses,
-  Status extends keyof R & StatusCode
+  Status extends StatusCode
 > = {
   statusCode: Status;
   headers?: {
     [header: string]: boolean | number | string;
   };
-  body: Static<Status extends keyof R ? Static<R[Status]> : any>;
+  body: Status extends keyof R ? ExtractSchema<R[Status]> : any;
 };
 
 const StatusCodes = [

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
-import { Static } from "@sinclair/typebox";
+import { Static, TSchema } from "@sinclair/typebox";
 import { PathParamParser, PathParamParsers } from "./path-param-parser";
 import { Responses, Response, StatusCode } from "./router";
 
@@ -78,6 +78,8 @@ type QueryParams<
   ? Merge<Seed & UrlParam<AA> & QueryParams<Tail>>
   : Seed;
 
+export type ExtractSchema<T> = T extends TSchema ? Static<T> : any;
+
 export type Request<Url extends string, Body, R extends Responses> = {
   pathParams: Url extends `${infer P}?${infer _}`
     ? PathParams<P>
@@ -86,7 +88,7 @@ export type Request<Url extends string, Body, R extends Responses> = {
   body: Body;
   response: <S extends StatusCode>(
     s: S,
-    body: Static<S extends keyof R ? R[S] : any>,
+    body: S extends keyof R ? ExtractSchema<R[S]> : any,
     headers?: Record<string, string>
   ) => Promise<Response<R, S>>;
 };

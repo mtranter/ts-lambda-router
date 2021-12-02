@@ -7,6 +7,22 @@ describe("toOpenApiPart", () => {
     const api = toOpenApi(
       [
         {
+          url: "/people/{name:string}",
+          method: "delete",
+          useIamAuth: true,
+          responses: {
+            200: Type.String(),
+          },
+        },
+        {
+          url: "/people/{name:string}",
+          method: "get",
+          useIamAuth: true,
+          responses: {
+            200: Type.String(),
+          },
+        },
+        {
           url: "/people/{name:string}/aged/{age:int}?{menOnly:bool?}",
           method: "post",
           useIamAuth: true,
@@ -15,7 +31,7 @@ describe("toOpenApiPart", () => {
           },
           body: Type.Object(
             {
-              name: Type.String(),
+              name: Type.String({description: "The Name"}),
             },
             { additionalProperties: false }
           ),
