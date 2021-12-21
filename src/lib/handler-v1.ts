@@ -60,6 +60,11 @@ export type VersionedHandlerType<V extends APIGatewayVersion> = V extends "V1"
   ? ApiGatewayHandlerWithOpenApi
   : ApiGatewayHandlerV2WithOpenApi;
 
+const fromBase64 = (data: string) => {
+  const buff = Buffer.from(data, "base64");
+  return buff.toString("utf-8");
+};
+
 export const APIEventHandler: (
   routes: RouteHandlers<"V1">,
   config?: RouterConfig
@@ -103,7 +108,7 @@ export const APIEventHandler: (
               query
             )
           : FP.either.right({});
-      const bodyObj = event.body ? JSON.parse(event.body) : null;
+      const bodyObj = event.body ? JSON.parse(event.isBase64Encoded ? fromBase64(event.body) : event.body) : null;
       const isValidBody = route.body ? ajv.validate(route.body, bodyObj) : true;
       if (isValidBody) {
         const tupled = FP.function.pipe(
@@ -213,7 +218,15 @@ export const APIEventHandler: (
     securitySchemes?: {
       [k: string]: SecurityScheme;
     }
-  ) => toOpenApi(handlers, "1.0", apiInfo, functionArn, iamRoleArn, securitySchemes);
+  ) =>
+    toOpenApi(
+      handlers,
+      "1.0",
+      apiInfo,
+      functionArn,
+      iamRoleArn,
+      securitySchemes
+    );
 
   return handler;
 };
