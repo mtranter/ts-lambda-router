@@ -66,6 +66,7 @@ const toOpenApiObject = (
   payloadFormatVersion: "1.0" | "2.0",
   apiInfo: ApiInfo,
   functionArn: string,
+  apiRoleArn?: string,
   securitySchemes?: {
     [k: string]: SecurityScheme;
   }
@@ -127,9 +128,10 @@ const toOpenApiObject = (
           : {}),
         "x-amazon-apigateway-integration": {
           type: "AWS_PROXY",
-          httpMethod: route.method.toUpperCase(),
+          httpMethod: "POST",
           uri: functionArn,
           payloadFormatVersion,
+          ...(apiRoleArn ? { credentials: apiRoleArn } : {}),
         },
         ...(route.useIamAuth ? { "x-amazon-apigateway-auth": "AWS_IAM" } : {}),
         ...(route.security
@@ -157,6 +159,7 @@ export const toOpenApi = (
   payloadFormatVersion: "1.0" | "2.0",
   apiInfo: ApiInfo,
   functionArn: string,
+  apiRoleArn?: string,
   securitySchemes?: {
     [k: string]: SecurityScheme;
   }
@@ -170,6 +173,7 @@ export const toOpenApi = (
           payloadFormatVersion,
           apiInfo,
           functionArn,
+          apiRoleArn,
           securitySchemes
         )
       ),

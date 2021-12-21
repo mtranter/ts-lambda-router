@@ -35,11 +35,25 @@ const buildCorsHeaders = (
 });
 
 export type ApiGatewayHandlerWithOpenApi = APIGatewayProxyHandler & {
-  toOpenApi: (apiInfo: ApiInfo, functionArn: string) => object;
+  toOpenApi: (
+    apiInfo: ApiInfo,
+    functionArn: string,
+    iamRoleArn?: string,
+    securitySchemes?: {
+      [k: string]: SecurityScheme;
+    }
+  ) => object;
 };
 
 export type ApiGatewayHandlerV2WithOpenApi = APIGatewayProxyHandlerV2 & {
-  toOpenApi: (apiInfo: ApiInfo, functionArn: string) => object;
+  toOpenApi: (
+    apiInfo: ApiInfo,
+    functionArn: string,
+    iamRoleArn?: string,
+    securitySchemes?: {
+      [k: string]: SecurityScheme;
+    }
+  ) => object;
 };
 
 export type VersionedHandlerType<V extends APIGatewayVersion> = V extends "V1"
@@ -195,10 +209,11 @@ export const APIEventHandler: (
   handler.toOpenApi = (
     apiInfo: ApiInfo,
     functionArn: string,
+    iamRoleArn?: string,
     securitySchemes?: {
       [k: string]: SecurityScheme;
     }
-  ) => toOpenApi(handlers, "1.0", apiInfo, functionArn, securitySchemes);
+  ) => toOpenApi(handlers, "1.0", apiInfo, functionArn, iamRoleArn, securitySchemes);
 
   return handler;
 };

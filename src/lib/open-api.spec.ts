@@ -44,6 +44,7 @@ describe("toOpenApiPart", () => {
       "1.0",
       { title: "Test Api", version: "1.0.0" },
       "<arn placeholder>",
+      'arn:aws:iam:ap-southeast-2:123456789:my-role',
       {
         "jwt-authorizer-autofind": {
           type: "openIdConnect",

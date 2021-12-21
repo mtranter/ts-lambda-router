@@ -44,7 +44,8 @@ type RouteConfig<Resp extends Responses> = {
   responsesSchema?: Resp;
   useIamAuth?: boolean;
   security?: {
-    [k: string]: string[];
+    scheme: string;
+    scopes: string[];
   };
 };
 
@@ -161,6 +162,7 @@ export const Router = <V extends APIGatewayVersion>(
           body,
           responses,
           useIamAuth: !!config?.useIamAuth,
+          security: config?.security,
         },
         ...handlers,
       ]);

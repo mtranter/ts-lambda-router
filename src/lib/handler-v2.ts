@@ -189,10 +189,19 @@ export const APIEventHandlerV2: (
   handler.toOpenApi = (
     apiInfo: ApiInfo,
     functionArn: string,
+    iamRoleArn?: string,
     securitySchemes?: {
       [k: string]: SecurityScheme;
     }
-  ) => toOpenApi(handlers, "2.0", apiInfo, functionArn, securitySchemes);
+  ) =>
+    toOpenApi(
+      handlers,
+      "2.0",
+      apiInfo,
+      functionArn,
+      iamRoleArn,
+      securitySchemes
+    );
 
   return handler;
 };
