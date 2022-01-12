@@ -133,7 +133,9 @@ const toOpenApiObject = (
           payloadFormatVersion,
           ...(apiRoleArn ? { credentials: apiRoleArn } : {}),
         },
-        ...(route.useIamAuth ? { "x-amazon-apigateway-auth": "AWS_IAM" } : {}),
+        ...(route.useIamAuth
+          ? { "x-amazon-apigateway-auth": { type: "AWS_IAM" } }
+          : {}),
         ...(route.security
           ? { security: [{ [route.security.scheme]: route.security.scopes }] }
           : {}),
