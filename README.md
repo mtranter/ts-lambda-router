@@ -30,7 +30,7 @@ export const Account = Type.Object({
 export const handler: APIGatewayProxyHandler =
     LambdaRouter.build((routes) =>
         routes
-          .get("/accounts/${username}")((r) =>
+          .get("/accounts/{username:string}")((r) =>
             Domain
               .getAccount(r.pathParams.username)
               .then((a) => ({
