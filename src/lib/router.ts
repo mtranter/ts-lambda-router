@@ -116,7 +116,7 @@ const StatusCodes = [
   508, 509, 510, 511, 598, 599,
 ] as const;
 export type StatusCode = typeof StatusCodes[number] & number;
-type AnyType = Record<StatusCode, TAny>;
+export type AnyType = Record<StatusCode, TAny>;
 const DefaultResponses = {
   200: Type.Any({
     description: "OK",
