@@ -5,8 +5,7 @@ import {
 } from "aws-lambda";
 import { ExtractSchema, Request } from "./types";
 import { Static, TAny, TSchema, Type } from "@sinclair/typebox";
-
-export type APIGatewayVersion = "V1" | "V2";
+import { Middleware, HandlerFunction } from "./middleware";
 
 type AnyRequest<TBody> = {
   pathParams: any;
@@ -19,7 +18,7 @@ type AnyRequest<TBody> = {
   ) => Promise<Response<any, any>>;
 };
 
-export type RouteHandlerDefinition<V extends APIGatewayVersion> = {
+export type RouteHandlerDefinition = {
   method: string;
   url: string;
   body?: TSchema;
@@ -32,9 +31,7 @@ export type RouteHandlerDefinition<V extends APIGatewayVersion> = {
   handler: (
     req: AnyRequest<any>,
     apiParams: {
-      originalEvent: V extends "V1"
-        ? APIGatewayProxyEvent
-        : APIGatewayProxyEventV2;
+      originalEvent: APIGatewayProxyEvent;
       context: Context;
     }
   ) => Promise<Response<any, any>>;
@@ -49,12 +46,13 @@ type RouteConfig<Resp extends Responses> = {
   };
 };
 
-const Handler = {
-  of: <I, O>(handler: (input: I, ctx: Context) => Promise<O>) => ({
-    run: (i: I, ctx: Context) => handler(i, ctx),
-    compose: <OO>(next: (o: O, ctx: Context) => Promise<OO>) =>
-      Handler.of<I, OO>((i, ctx) => handler(i, ctx).then((o) => next(o, ctx))),
-  }),
+type HandlerInput<
+  Url extends string,
+  B extends TSchema,
+  Resp extends Responses
+> = {
+  req: Request<Url, Static<B>, Resp>;
+  originalEvent: { originalEvent: APIGatewayProxyEvent; context: Context };
 };
 
 type HttpMethod<R, M extends HTTPMethod> = <
@@ -67,10 +65,9 @@ type HttpMethod<R, M extends HTTPMethod> = <
   bodyOrConfig?: M extends HTTPRead ? RouteConfig<Resp> : B,
   config?: M extends HTTPRead ? never : RouteConfig<Resp>
 ) => (
-  handler: <V extends APIGatewayVersion>(
-    req: Request<A, Static<B>, Resp>,
-    originalEvent: { originalEvent: VersionedRequest<V>; context: Context }
-  ) => Promise<Response<Resp, S>>
+  handler:
+    | HttpHandler<A, B, Resp, S>
+    | HandlerFunction<HttpHandler<A, B, Resp, S>>
 ) => Router<R>;
 
 export type Router<R> = R & {
@@ -83,8 +80,8 @@ export type Router<R> = R & {
   delete: HttpMethod<R, "delete">;
 };
 
-export type RouteHandlers<V extends APIGatewayVersion> = {
-  handlers: readonly RouteHandlerDefinition<V>[];
+export type RouteHandlers = {
+  handlers: readonly RouteHandlerDefinition[];
 };
 
 type HTTPRead = "get" | "options" | "head";
@@ -123,15 +120,19 @@ const DefaultResponses = {
   }),
 };
 
-type VersionedRequest<V extends APIGatewayVersion> = V extends "V1"
-  ? APIGatewayProxyEvent
-  : APIGatewayProxyEventV2;
+export type HttpHandler<
+  Url extends string,
+  Body extends TSchema,
+  Resp extends Responses,
+  Status extends StatusCode,
+  Extension = {}
+> = Middleware<HandlerInput<Url, Body, Resp> & Extension, Response<Resp, Status>>;
 
-export const Router = <V extends APIGatewayVersion>(
-  handlers: readonly RouteHandlerDefinition<V>[] = []
-): Router<RouteHandlers<V>> => {
+export const Router = (
+  handlers: readonly RouteHandlerDefinition[] = []
+): Router<RouteHandlers> => {
   const buildHandler =
-    <M extends HTTPMethod>(method: M): HttpMethod<RouteHandlers<V>, M> =>
+    <M extends HTTPMethod>(method: M): HttpMethod<RouteHandlers, M> =>
     <
       A extends string,
       B extends TSchema,
@@ -143,10 +144,9 @@ export const Router = <V extends APIGatewayVersion>(
       configOrNothing?: M extends HTTPRead ? never : RouteConfig<R>
     ) =>
     (
-      handler: (
-        req: Request<A, Static<B>, R>,
-        originalEvent: { originalEvent: VersionedRequest<V>; context: Context }
-      ) => Promise<Response<R, S>>
+      handler:
+        | HttpHandler<A, B, R, S>
+        | HandlerFunction<HttpHandler<A, B, R, S>>
     ) => {
       const isSafe = ["get", "options", "head"].includes(method);
       const body = isSafe ? undefined : (bodyOrConfig as TSchema);
@@ -154,11 +154,14 @@ export const Router = <V extends APIGatewayVersion>(
         isSafe ? bodyOrConfig : configOrNothing
       ) as RouteConfig<R>;
       const responses = config?.responsesSchema || DefaultResponses;
-      return Router<V>([
+      return Router([
         {
           method,
           url: path,
-          handler,
+          handler: (req, originalEvent) =>
+            typeof handler === "function"
+              ? handler({ req, originalEvent })
+              : handler.run({ req, originalEvent }),
           body,
           responses,
           useIamAuth: !!config?.useIamAuth,

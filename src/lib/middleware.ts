@@ -1,3 +1,4 @@
+import { Static, TSchema } from "@sinclair/typebox";
 import {
   APIGatewayProxyEvent,
   APIGatewayProxyEventV2,
@@ -5,33 +6,63 @@ import {
 } from "aws-lambda";
 import { Request } from ".";
 import { LambdaRouter } from "..";
-import { Response, Responses, StatusCode } from "./router";
+import { HttpHandler, Response, Responses, StatusCode } from "./router";
 
-type Handler<Url extends string, B, R extends Responses, T> = (
-  req: Request<Url, B, R>,
-  originalEvent: {
-    originalEvent: APIGatewayProxyEvent | APIGatewayProxyEventV2;
-    context: Context;
-  },
-  t: T
-) => Promise<Response<R, StatusCode>>;
+export type Middleware<I, O> = {
+  run: (i: I) => Promise<O>;
+  compose: <I2>(k: Middleware<I2, I>) => Middleware<I2, O>;
+  andThen: <O2>(k: Middleware<O, O2>) => Middleware<I, O2>;
+  map: <O2>(f: (o: O) => O2) => Middleware<I, O2>;
+  contraMap: <I2>(f: (o: I2) => I) => Middleware<I2, O>;
+  flatMap: <O2>(f: (o: O) => Middleware<I, O2>) => Middleware<I, O2>;
+  flatMapP: <O2>(f: (o: O) => Promise<O2>) => Middleware<I, O2>;
+};
 
-type HttpHandler<Url extends string, B, R extends Responses> = Handler<
-  Url,
-  B,
-  R,
-  void
->;
+export type HandlerFunction<H> = H extends Middleware<infer I, infer O>
+  ? (i: I) => Promise<O>
+  : never;
+
+const KleisliInstance = <I, O>(
+  run: (i: I) => Promise<O>
+): Middleware<I, O> => ({
+  run,
+  compose: <I2>(k: Middleware<I2, I>) =>
+    KleisliInstance<I2, O>((ii) => k.run(ii).then((o) => run(o))),
+  andThen: <O2>(k: Middleware<O, O2>) =>
+    KleisliInstance<I, O2>((i) => run(i).then(k.run)),
+  map: <O2>(f: (o: O) => O2): Middleware<I, O2> =>
+    KleisliInstance<I, O2>((i) => run(i).then(f)),
+  contraMap: <I2>(f: (o: I2) => I): Middleware<I2, O> =>
+    KleisliInstance<I2, O>((i) => run(f(i))),
+  flatMapP: <O2>(f: (o: O) => Promise<O2>): Middleware<I, O2> =>
+    KleisliInstance<I, O2>((i) => run(i).then(f)),
+  flatMap: <O2>(f: (o: O) => Middleware<I, O2>): Middleware<I, O2> =>
+    KleisliInstance<I, O2>((i) => run(i).then((o) => f(o).run(i))),
+});
 
 export const Middleware = {
-  of:
-    <T>(impl: Handler<string, any, Responses, Handler<string, any, any, T>>) =>
-    <Url extends string, B, R extends Responses>(
-      handler: Handler<Url, B, R, T>
-    ): HttpHandler<Url, B, R> =>
-      ((req, orig) => {
-        return impl(req as any, orig, handler as any);
-      }) as HttpHandler<Url, B, R>,
+  httpHandler: <
+    A extends string,
+    B extends TSchema,
+    R extends Responses,
+    S extends StatusCode
+  >(
+    handler: (
+      req: Request<A, Static<B>, R>,
+      originalContext: {
+        originalEvent: APIGatewayProxyEvent;
+        context: Context;
+      }
+    ) => Promise<Response<R, S>>
+  ): HttpHandler<A, B, R, S> =>
+    Middleware.of((i) => handler(i.req, i.originalEvent)),
+  of: <I, O>(f: (i: I) => Promise<O>): Middleware<I, O> => KleisliInstance(f),
+  pure: <I, O>(o: O): Middleware<I, O> =>
+    KleisliInstance((i) => Promise.resolve(o)),
+  liftP: <I, O>(o: Promise<O>): Middleware<I, O> => KleisliInstance((i) => o),
+  ask: <A>(): Middleware<A, A> => KleisliInstance((a) => Promise.resolve(a)),
+  fromFunction: <I, O>(f: (i: I) => O): Middleware<I, O> =>
+    KleisliInstance((i) => Promise.resolve(f(i))),
 };
 
 const extractContext = (req: APIGatewayProxyEvent | APIGatewayProxyEventV2) => {
@@ -40,18 +71,26 @@ const extractContext = (req: APIGatewayProxyEvent | APIGatewayProxyEventV2) => {
   return { userId, tenantId };
 };
 
-type UserContext = {tenantId: string, userId: string}
-const authMiddleware = Middleware.of<UserContext>((req, original, handler) => {
-  const { userId, tenantId } = extractContext(original.originalEvent);
-  if (!userId || !tenantId) {
-    return Promise.resolve({
-      statusCode: 401 as StatusCode,
-      body: "Unauthorized" as any,
-    });
-  } else {
-    return handler(req, original, { tenantId, userId });
-  }
-});
+type UserContext = { tenantId: string; userId: string };
+const authMiddleware = <
+  A extends string,
+  B extends TSchema,
+  R extends Responses,
+  S extends StatusCode
+>(
+  wrapped: HttpHandler<A, B, R, S, { userId: string; tenantId: string }>
+) =>
+  Middleware.httpHandler<A, B, R, S>((req, originalEvent) => {
+    const { userId, tenantId } = extractContext(originalEvent.originalEvent);
+    if (!userId || !tenantId) {
+      return Promise.resolve({
+        statusCode: 401 as StatusCode,
+        body: "Unauthorized" as any,
+      });
+    } else {
+      return wrapped.run({ req, originalEvent, tenantId, userId });
+    }
+  });
 
 const authedRoute = LambdaRouter.build((r) =>
   r.get("/routes/{id}")(

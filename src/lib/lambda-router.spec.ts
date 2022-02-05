@@ -5,6 +5,7 @@ import {
   APIGatewayProxyResult,
 } from "aws-lambda";
 import { LambdaRouter } from "./lambda-router";
+import { HttpHandler } from "./router";
 
 describe("ApiHandler", () => {
   const testHandler =
@@ -14,7 +15,7 @@ describe("ApiHandler", () => {
 
   it("should handle the root route", async () => {
     const handler = LambdaRouter.build((r) =>
-      r.get("/")((r, o) => r.response(200, "OK"))
+      r.get("/")(({ req }) => req.response(200, "OK"))
     );
     const result = await testHandler(handler)({
       path: "/",
@@ -28,7 +29,7 @@ describe("ApiHandler", () => {
 
   it("should handle a root route with escaped characters", async () => {
     const handler = LambdaRouter.build((r) =>
-      r.get("/{userId}")((r, o) => r.response(200, r.pathParams.userId))
+      r.get("/{userId}")(({ req }) => req.response(200, req.pathParams.userId))
     );
     const result = await testHandler(handler)({
       path: "/github%7C3257273",
@@ -41,8 +42,8 @@ describe("ApiHandler", () => {
 
   it("should return 404 for unknown route", async () => {
     const handler = LambdaRouter.build((r) =>
-      r.get("/", { responsesSchema: { 200: Type.String() } })((r, o) =>
-        r.response(200, "OK")
+      r.get("/", { responsesSchema: { 200: Type.String() } })(({ req }) =>
+        req.response(200, "OK")
       )
     );
     const result = await testHandler(handler)({
@@ -55,8 +56,8 @@ describe("ApiHandler", () => {
 
   it("should correct params for parameterised route", async () => {
     const handler = LambdaRouter.build((r) =>
-      r.get("/name/{name}/age/{age:int}")((r, o) =>
-        r.response(200, r.pathParams)
+      r.get("/name/{name}/age/{age:int}")(({ req }) =>
+        req.response(200, req.pathParams)
       )
     );
     const result = await testHandler(handler)({
@@ -71,8 +72,8 @@ describe("ApiHandler", () => {
 
   it("should correct params for float parameterised route", async () => {
     const handler = LambdaRouter.build((r) =>
-      r.get("/name/{name}/age/{age:float}")((r, o) =>
-        r.response(200, r.pathParams)
+      r.get("/name/{name}/age/{age:float}")(({ req }) =>
+        req.response(200, req.pathParams)
       )
     );
     const result = await testHandler(handler)({
@@ -91,7 +92,7 @@ describe("ApiHandler", () => {
         Type.Object({
           creditCardNumber: Type.String(),
         })
-      )((r, o) => r.response(200, { ...r.pathParams, ...r.body }))
+      )(({ req }) => req.response(200, { ...req.pathParams, ...req.body }))
     );
     const result = await testHandler(handler)({
       path: "/name/john/age/30",
@@ -109,15 +110,15 @@ describe("ApiHandler", () => {
   it("should correct 400 for parameterised post route with invalid body", async () => {
     const handler = LambdaRouter.build((r) =>
       r
-        .get("/name/{name}/age/{age:int}")((r, o) =>
-          r.response(200, r.pathParams)
+        .get("/name/{name}/age/{age:int}")(({ req }) =>
+          req.response(200, req.pathParams)
         )
         .post(
           "/name/{name}/age/{age:int}",
           Type.Object({
             creditCardNumber: Type.String(),
           })
-        )((r, o) => r.response(200, { ...r.pathParams, ...r.body }))
+        )(({ req }) => req.response(200, { ...req.pathParams, ...req.body }))
     );
     const result = await testHandler(handler)({
       path: "/name/john/age/30",
@@ -128,8 +129,8 @@ describe("ApiHandler", () => {
   });
   it("should return 400 for poorly formatted url", async () => {
     const handler = LambdaRouter.build((r) =>
-      r.get("/name/{name}/age/{age:int}")((r, o) =>
-        r.response(200, r.pathParams)
+      r.get("/name/{name}/age/{age:int}")(({ req }) =>
+        req.response(200, req.pathParams)
       )
     );
     const result = await testHandler(handler)({
@@ -141,8 +142,8 @@ describe("ApiHandler", () => {
   });
   it("should correct params for parameterised route with query strings", async () => {
     const handler = LambdaRouter.build((routes) =>
-      routes.get("/name/{name}/age/{age:int}?{gender}")((r, o) =>
-        r.response(200, { ...r.pathParams, ...r.queryParams })
+      routes.get("/name/{name}/age/{age:int}?{gender}")(({ req }) =>
+        req.response(200, { ...req.pathParams, ...req.queryParams })
       )
     );
     const result = await testHandler(handler)({
@@ -164,8 +165,8 @@ describe("ApiHandler", () => {
 
   it("should return 200 for for route with typed query strings and valid values", async () => {
     const handler = LambdaRouter.build((routes) =>
-      routes.get("/people?{ids:int[]}")((r, o) =>
-        r.response(200, { ...r.pathParams, ...r.queryParams })
+      routes.get("/people?{ids:int[]}")(({ req }) =>
+        req.response(200, { ...req.pathParams, ...req.queryParams })
       )
     );
     const result = await testHandler(handler)({
@@ -184,8 +185,10 @@ describe("ApiHandler", () => {
   });
   it("should return 400 for for route with typed query strings and invalid values", async () => {
     const handler = LambdaRouter.build((routes) =>
-      routes.get("/people?{ids:int[]}")((r, o) =>
-        r.response(200, { ...r.pathParams, ...r.queryParams })
+      routes.get("/people?{ids:int[]}")(
+        HttpHandler.of((req) =>
+          req.response(200, { ...req.pathParams, ...req.queryParams })
+        )
       )
     );
     const result = await testHandler(handler)({
@@ -202,7 +205,7 @@ describe("ApiHandler", () => {
   describe("CORS Headers", () => {
     it("should add permissive cors headers when passed 'true' for cors config", async () => {
       const handler = LambdaRouter.build(
-        (routes) => routes.get("/")((r, o) => r.response(200, "OK")),
+        (routes) => routes.get("/")(({ req }) => req.response(200, "OK")),
         { corsConfig: true }
       );
       const result = await testHandler(handler)({
@@ -219,7 +222,7 @@ describe("ApiHandler", () => {
     });
     it("should add configured cors headers", async () => {
       const handler = LambdaRouter.build(
-        (routes) => routes.get("/")((r, o) => r.response(200, "OK")),
+        (routes) => routes.get("/")(({ req }) => req.response(200, "OK")),
         {
           corsConfig: {
             allowCredentials: false,
