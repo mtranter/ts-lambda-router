@@ -5,6 +5,7 @@ import {
 } from "aws-lambda";
 import { ExtractSchema, Request } from "./types";
 import { Static, TAny, TSchema, Type } from "@sinclair/typebox";
+import Ajv, { ValidateFunction } from "ajv";
 
 export type APIGatewayVersion = "V1" | "V2";
 
@@ -23,6 +24,7 @@ export type RouteHandlerDefinition<V extends APIGatewayVersion> = {
   method: string;
   url: string;
   body?: TSchema;
+  bodyValidator?: ValidateFunction,
   responses: Responses;
   useIamAuth: boolean;
   security?: {
@@ -150,6 +152,7 @@ export const Router = <V extends APIGatewayVersion>(
     ) => {
       const isSafe = ["get", "options", "head"].includes(method);
       const body = isSafe ? undefined : (bodyOrConfig as TSchema);
+      const bodyValidator = isSafe ? undefined : (new Ajv().compile(Type.Strict(bodyOrConfig as TSchema)))
       const config: RouteConfig<R> = (
         isSafe ? bodyOrConfig : configOrNothing
       ) as RouteConfig<R>;
@@ -160,6 +163,7 @@ export const Router = <V extends APIGatewayVersion>(
           url: path,
           handler,
           body,
+          bodyValidator,
           responses,
           useIamAuth: !!config?.useIamAuth,
           security: config?.security,

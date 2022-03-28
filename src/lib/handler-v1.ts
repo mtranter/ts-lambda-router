@@ -108,8 +108,18 @@ export const APIEventHandler: (
               query
             )
           : FP.either.right({});
-      const bodyObj = event.body ? JSON.parse(event.isBase64Encoded ? fromBase64(event.body) : event.body) : null;
-      const isValidBody = route.body ? ajv.validate(route.body, bodyObj) : true;
+      const bodyObj = event.body
+        ? JSON.parse(
+            event.isBase64Encoded ? fromBase64(event.body) : event.body
+          )
+        : null;
+      if (route.bodyValidator?.errors) {
+        route.bodyValidator.errors = null;
+      }
+      const isValidBody = route.bodyValidator
+        ? route.bodyValidator(bodyObj)
+        : true;
+
       if (isValidBody) {
         const tupled = FP.function.pipe(
           pathParams,
@@ -179,13 +189,17 @@ export const APIEventHandler: (
         logger &&
           logger.info(`Request body does not much expected schema`, {
             body: event.body,
+            errors: route.bodyValidator?.errors,
             path: event.path,
             query: event.queryStringParameters,
             headers: event.headers,
           });
         return Promise.resolve({
           statusCode: 400,
-          body: JSON.stringify({ message: "Bad request" }),
+          body: JSON.stringify({
+            message: "Bad request",
+            errors: route.bodyValidator?.errors,
+          }),
           headers: corsHeaders,
         }).then((r) => {
           logRequestResponse(r);
