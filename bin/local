@@ -1,0 +1,21 @@
+#! /usr/bin/env bash
+
+module=$1
+handler=$2
+port=$3
+dev=$4
+[[ "$dev" == "true" ]] && executable="bin/server.js" || executable="node_modules/.bin/ts-lambda-router-local"
+
+if [[ "$module" == *ts ]]; then
+    TS_NODE=./node_modules/ts-node/package.json
+    if [[ -f "$TS_NODE" ]]; then
+        node -r ts-node/register $executable $module $handler $port
+    else
+        echo "Running a typescript module: $module requires ts-node. Please run 'npm install --save-dev ts-node' or 'yarn add -D ts-node'"
+        exit 1
+    fi
+else
+    node $executable $module $handler $port
+fi
+
+

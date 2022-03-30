@@ -1,14 +1,15 @@
 {
   "name": "ts-lambda-router",
-  "version": "0.12.0",
+  "version": "0.13.0-test",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "ts-lambda-router-local": "dist/lib/local.js"
+    "ts-lambda-router-local": "bin/local"
   },
   "files": [
-    "dist/**"
+    "dist/**",
+    "bin/**"
   ],
   "scripts": {
     "build": "rm -rf ./dist && tsc",

@@ -15,22 +15,22 @@ const handlerFn = handlerModule[handler];
 
 if (typeof handlerFn === "function") {
   const apiHandler = handlerFn;
-  const server = http.createServer(async (req: any, res: any) => {
+  const server = http.createServer(async (req, res) => {
     const query = req.url?.includes("?")
-      ? querystring.parse(req.url!.split("?")[1])
+      ? querystring.parse(req.url.split("?")[1])
       : null;
-    let body = "";
-    req.on("data", (c: any) => {
-      body += c;
-    });
+      let body = undefined;
+      req.on("data", (c) => {
+          body = (body || "") + c;
+      });
     req.on("end", async () => {
       const response = await apiHandler({
-        path: req.url!.split("?")[0],
-        httpMethod: req.method!,
+        path: req.url.split("?")[0],
+        httpMethod: req.method,
         body,
-        headers: req.headers as any,
+        headers: req.headers,
         queryStringParameters: query,
-      } as any).catch((e: any) => {
+      }).catch((e) => {
         console.error(e);
         return {
           statusCode: 500,
@@ -43,7 +43,7 @@ if (typeof handlerFn === "function") {
   });
   server.listen(port, "127.0.0.1", () => {
     console.log(
-      `ts-lambda-router-local Server is running on http://127.0.0.1:${port}`
+      `ts-lambda-router-local Server is running on http://127.0.0.1:${port}\nPress Ctrl+c to exit`
     );
   });
 } else {
