@@ -14,7 +14,7 @@ export const handler: APIGatewayProxyHandler = LambdaRouter.build((routes) =>
         r.response(a ? 200 : 404, a)
       )
     )
-    .post("/accounts", Account, { responsesSchema: AccountCreateResponses })(
+    .post("/accounts", Account)(
     (r) =>
       Domain.saveAccount(r.body)
         .then((id) =>

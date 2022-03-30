@@ -16,8 +16,6 @@ import { ApiInfo, SecurityScheme, toOpenApi } from "./open-api";
 import { logRequestResponse } from "./logging";
 import { isLeft } from "fp-ts/lib/These";
 
-const ajv = new Ajv({ strict: false });
-
 const buildCorsHeaders = (
   req: APIGatewayProxyEventHeaders,
   cfg: CorsConfig
@@ -96,12 +94,13 @@ export const APIEventHandler: (
     const corsHeaders = thisCorsConfig
       ? buildCorsHeaders(event.headers, thisCorsConfig)
       : {};
+
     if (route) {
       const path = route.url.split("?")[0];
       const query = route.url.split("?")[1];
       const pathParams = parsePathParams(decodeURIComponent(event.path), path);
       const queryParams =
-        event.queryStringParameters || event.multiValueQueryStringParameters
+        (event.queryStringParameters || event.multiValueQueryStringParameters) && query
           ? parseQueryParams(
               event.queryStringParameters || {},
               event.multiValueQueryStringParameters || {},
@@ -119,7 +118,6 @@ export const APIEventHandler: (
       const isValidBody = route.bodyValidator
         ? route.bodyValidator(bodyObj)
         : true;
-
       if (isValidBody) {
         const tupled = FP.function.pipe(
           pathParams,
