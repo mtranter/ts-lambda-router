@@ -96,11 +96,13 @@ export const APIEventHandler: (
       : {};
 
     if (route) {
-      const path = route.url.split("?")[0];
-      const query = route.url.split("?")[1];
+      const [path, ...tail] = route.url.split("?");
+      const query = tail.join("");
       const pathParams = parsePathParams(decodeURIComponent(event.path), path);
       const queryParams =
-        (event.queryStringParameters || event.multiValueQueryStringParameters) && query
+        (event.queryStringParameters ||
+          event.multiValueQueryStringParameters) &&
+        query
           ? parseQueryParams(
               event.queryStringParameters || {},
               event.multiValueQueryStringParameters || {},
