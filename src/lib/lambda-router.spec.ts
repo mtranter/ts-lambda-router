@@ -162,6 +162,71 @@ describe("ApiHandler", () => {
     });
   });
 
+  it("should ignore the optional query param if it is not provided", async () => {
+    const handler = LambdaRouter.build((routes) =>
+      routes.get("/name/{name}/age/{age:int}?{gender?:string}")((r, o) =>
+        r.response(200, { ...r.pathParams, ...r.queryParams })
+      )
+    );
+    const result = await testHandler(handler)({
+      path: "/name/john/age/30",
+      httpMethod: "get",
+      queryStringParameters: {},
+      body: "",
+    });
+    
+    expect(result.statusCode).toEqual(200);
+
+    expect(JSON.parse(result.body)).toEqual({
+      name: "john",
+      age: 30,
+    });
+  });
+
+  it("should ignore the optional query param when combined with required ones", async () => {
+    const handler = LambdaRouter.build((routes) =>
+      routes.get("/name/{name}/age/{age:int}?{gender?:string}{id:int}{height?:int}")((r, o) =>
+        r.response(200, { ...r.pathParams, ...r.queryParams })
+      )
+    );
+    const result = await testHandler(handler)({
+      path: "/name/john/age/30",
+      httpMethod: "get",
+      queryStringParameters: {
+        id: "123456",
+        height: "166"
+      },
+      body: "",
+    });
+    
+    expect(result.statusCode).toEqual(200);
+
+    expect(JSON.parse(result.body)).toEqual({
+      id: 123456,
+      height: 166,
+      name: "john",
+      age: 30,
+    });
+  });
+
+  it("should return an error when the required query param is not provided", async () => {
+    const handler = LambdaRouter.build((routes) =>
+      routes.get("/name/{name}/age/{age:int}?{gender?:string}{id:int}{height?:int}")((r, o) =>
+        r.response(200, { ...r.pathParams, ...r.queryParams })
+      )
+    );
+    const result = await testHandler(handler)({
+      path: "/name/john/age/30",
+      httpMethod: "get",
+      queryStringParameters: {
+        height: "166"
+      },
+      body: "",
+    });
+    
+    expect(result.statusCode).toEqual(400);
+  });
+
   it("should return 200 for for route with typed query strings and valid values", async () => {
     const handler = LambdaRouter.build((routes) =>
       routes.get("/people?{ids:int[]}")((r, o) =>

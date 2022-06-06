@@ -113,7 +113,7 @@ export const parsePathParams = (
   }, right<string[], {}>({}));
 };
 
-const QueryParamRegex = /\{([^\}\?/]+)/g;
+const QueryParamRegex = /\{([^\}/]+)/g;
 export const parseQueryParams = (
   pathParams: APIGatewayProxyEventQueryStringParameters,
   multiPathParams: APIGatewayProxyEventMultiValueQueryStringParameters,
