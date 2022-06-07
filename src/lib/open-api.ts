@@ -47,6 +47,14 @@ type ApiGatewayOAuthAuthorizerConfiguration = {
     audience: string[];
   };
 };
+type CustomLambdaAuthorizerConfiguration = {
+  type: "request";
+  identitySource: "$request.header.Authorization" | string;
+  authorizerUri: string;
+  authorizerPayloadFormatVersion: "2.0";
+  authorizerResultTtlInSeconds: number;
+  enableSimpleResponses: boolean;
+};
 
 type OpenIdSecurityScheme = {
   type: "openIdConnect";
@@ -59,7 +67,17 @@ type OAuthSecurityScheme = {
   "x-amazon-apigateway-authorizer": ApiGatewayOAuthAuthorizerConfiguration;
 };
 
-export type SecurityScheme = OpenIdSecurityScheme | OAuthSecurityScheme;
+type CustomLambdaSecurityScheme = {
+  type: "apiKey";
+  in: "header" | "query"
+  name: "Authorization"
+  "x-amazon-apigateway-authorizer": CustomLambdaAuthorizerConfiguration;
+};
+
+export type SecurityScheme =
+  | OpenIdSecurityScheme
+  | OAuthSecurityScheme
+  | CustomLambdaSecurityScheme;
 
 const toOpenApiObject = (
   route: RouteDefinition,
